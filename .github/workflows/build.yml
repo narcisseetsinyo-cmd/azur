@@ -25,9 +25,9 @@ jobs:
             files: dist/*.dmg
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -41,9 +41,19 @@ jobs:
           npm test
 
       - name: Fabriquer l'installateur
-        run: ${{ matrix.cmd }} --publish never
+        shell: bash
+        run: |
+          set -o pipefail
+          ${{ matrix.cmd }} -- --publish never 2>&1 | tee build.log
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Résumer l'erreur
+        if: failure()
+        shell: bash
+        run: |
+          msg=$(grep -v '^\s*$' build.log | tail -n 45 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=Fabrication ${{ matrix.name }}::${msg}"
 
       - name: Mettre l'installateur à disposition
         uses: actions/upload-artifact@v4
