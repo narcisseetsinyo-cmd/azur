@@ -7,6 +7,8 @@ Azur est un logiciel de gestion de budget mensuel personnel : entrées, dépense
 - **Sécurité** : les mots de passe ne sont jamais enregistrés en clair (ils sont chiffrés avec scrypt). Après 5 essais ratés, le compte est bloqué quelques instants.
 - **Mot de passe oublié** : à la création du compte, Azur affiche un code de secours à noter. Il permet de choisir un nouveau mot de passe.
 
+Le guide complet d'utilisation, avec la charte graphique et colorimétrique, se trouve dans [`docs/Azur-Guide-utilisation.pdf`](docs/Azur-Guide-utilisation.pdf).
+
 ## Obtenir les installateurs avec GitHub
 
 GitHub fabrique automatiquement les deux installateurs, sur de vrais ordinateurs Windows et Mac.
