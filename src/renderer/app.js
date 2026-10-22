@@ -316,6 +316,7 @@ function vSettings(){
     <div class="status" id="sync-card">${syncCardHtml()}</div>
     ${window.azur.legacy?`<div class="set-row"><div><strong>Données de la version 1.0</strong><small>Récupère les opérations enregistrées sur cet ordinateur avant la synchronisation</small></div><button class="btn" data-act="legacy-open" type="button">${ms("move_to_inbox")}Importer</button></div>`:""}
   </section>
+  ${window.azurNative&&window.azurNative.updates?`<section class="card set-sec" style="--i:2"><h2>Mises à jour</h2><div id="upd-card">${updCardHtml()}</div></section>`:""}
   <section class="card set-sec" style="--i:2"><h2>Préférences</h2>
     <div class="set-row"><div><strong>Devise</strong><small>Utilisée pour tous les montants</small></div><select class="input" id="set-currency" data-set="currency">${Object.entries(CURRENCIES).map(([k,v])=>`<option value="${k}" ${c.currency===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     <div class="set-row"><div><strong>Début du mois budgétaire</strong><small>Par exemple le jour où tombe ton salaire</small></div><select class="input" id="set-start" data-set="startDay">${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${+c.startDay===i+1?"selected":""}>Le ${i+1}${i===0?"er":""} du mois</option>`).join("")}</select></div>
@@ -704,6 +705,8 @@ document.addEventListener("click",e=>{
     case "acc-password":openAccount("password");break;
     case "acc-reset":(async()=>{const r=await window.azur.account.sendReset();toast(r.ok?`Lien envoyé à ${r.data}. Vérifie aussi les courriers indésirables.`:r.error.message);})();break;
     case "legacy-open":openLegacy();break;
+    case "upd-check":window.azurNative.updates.check().then(r=>{if(r.ok){upd.status=r.data;renderUpd();if(r.data.state==="uptodate")toast("Azur est à jour.");}});upd.status={...(upd.status||{}),state:"checking"};renderUpd();break;
+    case "upd-restart":window.azurNative.updates.restart();break;
     case "legacy-go":legacyImport();break;
     case "acc-delete":openAccount("delete");break;
     case "acc-submit":submitAccount();break;
@@ -799,6 +802,30 @@ document.addEventListener("pointerdown",e=>{
 },{passive:true});
 
 /* ---------- Démarrage ---------- */
+/* ---------- Mises à jour (logiciel seulement) ---------- */
+let upd={status:null,shell:"",uiv:"",toasted:""};
+function updCardHtml(){
+  const st=upd.status||{state:"idle"};const sh=st.shell||null;
+  let line="Azur vérifie les mises à jour au démarrage, puis toutes les 6 heures.",btn=`<button class="btn" data-act="upd-check" type="button">${ms("refresh")}Rechercher</button>`;
+  if(st.state==="checking")line="Recherche en cours…";
+  else if(st.state==="ready"){line=`Une nouvelle version de l'interface (${esc(st.ui)}) est prête. Elle s'appliquera au prochain démarrage.`;btn=`<button class="btn primary" data-act="upd-restart" type="button">${ms("restart_alt")}Redémarrer maintenant</button>`;}
+  else if(st.message)line=esc(st.message);
+  let shellLine="";
+  if(sh&&sh.state==="downloading")shellLine=`Téléchargement du logiciel ${esc(sh.version||"")}${sh.percent!=null?" : "+sh.percent+" %":"…"}`;
+  else if(sh&&sh.state==="ready"){shellLine=`Le logiciel ${esc(sh.version)} est prêt et s'installera au redémarrage.`;btn=`<button class="btn primary" data-act="upd-restart" type="button">${ms("restart_alt")}Redémarrer et mettre à jour</button>`;}
+  else if(sh&&sh.state==="manual")shellLine=`Une nouvelle version complète (${esc(sh.version)}) est disponible pour Mac. Elle se télécharge sur la page des versions : <a href="${esc(sh.url)}" target="_blank" rel="noopener">ouvrir la page</a>.`;
+  return `<div class="set-row"><div><strong>Version ${esc(upd.shell)}${upd.uiv&&upd.uiv!==upd.shell?` · interface ${esc(upd.uiv)}`:""}</strong><small>${line}</small>${shellLine?`<small style="margin-top:4px">${shellLine}</small>`:""}</div>${btn}</div>`;
+}
+function renderUpd(){const c=$("#upd-card");if(c)c.innerHTML=updCardHtml();}
+if(window.azurNative&&window.azurNative.updates){
+  window.azurNative.updates.info().then(r=>{if(r.ok){upd.shell=r.data.shell;upd.uiv=r.data.ui;upd.status=r.data.status;renderUpd();}});
+  window.azurNative.updates.onStatus(st=>{
+    upd.status=st;renderUpd();
+    const key=(st.state==="ready"?"ui"+st.ui:"")+(st.shell&&st.shell.state==="ready"?"sh"+st.shell.version:"");
+    if(key&&key!==upd.toasted&&session.user){upd.toasted=key;toast("Une mise à jour d'Azur est prête.","Redémarrer",()=>window.azurNative.updates.restart());}
+  });
+}
+
 /* ---------- Synchronisation ---------- */
 let stopRemote=null,stopStatus=null,remoteState=null;
 const SYNC={synced:["cloud_done","Synchronisé","var(--in)"],pending:["cloud_sync","Envoi en cours…","var(--accent)"],connecting:["cloud_sync","Connexion…","var(--accent)"],offline:["cloud_off","Hors ligne","var(--gift)"]};
@@ -910,6 +937,6 @@ window.AzurApp={
     document.documentElement.removeAttribute("data-theme");
   }
 };
-window.azur.app.info().then(r=>{if(r.ok)ui.version=r.data.version;});
+window.azur.app.info().then(r=>{if(r.ok)ui.version=r.data.ui&&r.data.ui!==r.data.version?r.data.version+" (interface "+r.data.ui+")":r.data.version;});
 window.azur.auth.onLocked(()=>{if(session.user)lockApp();});
 })();

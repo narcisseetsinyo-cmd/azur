@@ -56,3 +56,13 @@ Organisation :
 - `test/` : tests de la base et banc d'essai de l'interface.
 
 Polices : Outfit et Material Symbols (licences libres), Clash Display (Fontshare Free License, voir `src/renderer/fonts`).
+
+## Mises à jour
+
+Depuis la version 1.2.0, Azur se met à jour sans rien réinstaller :
+
+- **Interface (Mac et Windows)** : au démarrage puis toutes les 6 heures, Azur vérifie la version web. Les fichiers modifiés sont téléchargés, vérifiés, puis appliqués au redémarrage. Si une nouvelle interface ne démarre pas, Azur revient tout seul à la précédente.
+- **Logiciel complet (Windows)** : la nouvelle version se télécharge en arrière-plan et s'installe au redémarrage.
+- **Logiciel complet (Mac)** : sans signature Apple payante, macOS n'autorise pas l'installation automatique. Azur signale la nouvelle version dans Paramètres › Mises à jour, avec un lien vers la page de téléchargement.
+
+Pour publier une mise à jour de l'interface : augmenter `azurUi` dans `package.json`, puis pousser sur `main`. La version web et tous les logiciels installés la reçoivent. Si la mise à jour demande aussi un nouveau logiciel, augmenter `version` et `azurMinShell`, puis lancer « Fabriquer les installateurs » avec « Publier une version officielle ».

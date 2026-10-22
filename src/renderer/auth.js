@@ -204,6 +204,7 @@
   window.AzurAuth = { show };
 
   (async () => {
+    try { if (window.azurNative && window.azurNative.uiReady) window.azurNative.uiReady(); } catch (e) { /* ancien logiciel */ }
     if (!window.azur.configured) { st.view = "setup"; root.hidden = false; render(false); return; }
     const s = await window.azur.auth.session();
     if (s.ok && s.data) { root.hidden = true; window.AzurApp.start(s.data); }

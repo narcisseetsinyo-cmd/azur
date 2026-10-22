@@ -1,7 +1,7 @@
 {
   "name": "azur",
   "productName": "Azur",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Azur, ton budget mensuel personnel",
   "author": "Éternel Élégance",
   "license": "UNLICENSED",
@@ -19,7 +19,8 @@
     "test:sync": "firebase emulators:exec --only auth,firestore --project demo-azur \"node test/sync.e2e.mjs\""
   },
   "dependencies": {
-    "better-sqlite3": "13.0.3"
+    "better-sqlite3": "13.0.3",
+    "electron-updater": "6.8.9"
   },
   "devDependencies": {
     "electron": "43.7.7",
@@ -97,6 +98,16 @@
       ],
       "category": "Finance",
       "icon": "build/icon.png"
-    }
-  }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "narcisseetsinyo-cmd",
+        "repo": "azur",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "azurUi": "1.2.0",
+  "azurMinShell": "1.2.0"
 }

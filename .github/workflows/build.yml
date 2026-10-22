@@ -23,7 +23,10 @@ jobs:
           - name: Windows
             os: windows-latest
             cmd: npm run dist:win
-            files: dist/*.exe
+            files: |
+              dist/*.exe
+              dist/*.blockmap
+              dist/latest.yml
           - name: Mac
             os: macos-latest
             cmd: npm run dist:mac
@@ -44,6 +47,9 @@ jobs:
         run: |
           npm rebuild better-sqlite3
           npm test
+
+      - name: Préparer l'interface et son manifeste
+        run: node scripts/build-web.js
 
       - name: Fabriquer l'installateur
         shell: bash

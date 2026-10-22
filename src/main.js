@@ -3,6 +3,8 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, nativeTheme } = requir
 const path = require("path");
 const fs = require("fs");
 const store = require("./db");
+const updater = require("./updater");
+let ui = null; // interface chargée : { dir, version, updated }
 
 let win = null;
 let db = null;
@@ -33,13 +35,30 @@ function createWindow() {
     }
   });
   win.once("ready-to-show", () => win.show());
-  win.loadFile(path.join(__dirname, "renderer", "index.html"));
+  ui = updater.uiDir();
+  loadUi();
+  win.webContents.on("did-fail-load", (e, code, desc, url, isMain) => { if (isMain && ui && ui.updated) fallback("chargement impossible"); });
+  win.webContents.on("render-process-gone", () => { if (ui && ui.updated) fallback("plantage"); });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", e => e.preventDefault());
   win.on("closed", () => { win = null; });
+}
+
+let readyTimer = null;
+function loadUi() {
+  clearTimeout(readyTimer);
+  win.loadFile(path.join(ui.dir, "index.html"));
+  // Une interface téléchargée doit confirmer qu'elle démarre bien, sinon on revient à celle intégrée
+  if (ui.updated) readyTimer = setTimeout(() => fallback("pas de réponse"), 20000);
+}
+function fallback(reason) {
+  console.warn("Azur : retour à l'interface intégrée (" + reason + ")");
+  updater.markBad(ui.version);
+  ui = updater.uiDir();
+  if (win) loadUi();
 }
 
 function buildMenu() {
@@ -101,13 +120,18 @@ function registerIpc() {
     await fs.promises.writeFile(r.filePath, String(text), "utf8");
     return { saved: true, path: r.filePath };
   });
-  handle("app:info", () => ({ version: app.getVersion(), platform: process.platform, dark: nativeTheme.shouldUseDarkColors }));
+  handle("app:info", () => ({ version: app.getVersion(), ui: ui ? ui.version : app.getVersion(), platform: process.platform, dark: nativeTheme.shouldUseDarkColors }));
+  handle("ui:ready", () => { clearTimeout(readyTimer); return true; });
+  handle("updates:info", () => updater.info());
+  handle("updates:check", () => updater.check(true));
+  handle("updates:restart", () => { updater.restart(); return true; });
 }
 
 app.whenReady().then(() => {
   registerIpc();
   buildMenu();
   createWindow();
+  updater.start(st => { if (win) win.webContents.send("updates:status", st); });
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

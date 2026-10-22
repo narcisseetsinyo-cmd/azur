@@ -8,4 +8,4 @@ window.AZUR_FIREBASE = {
   messagingSenderId: "372189631216",
   appId: "1:372189631216:web:3b286bf7f132e18078e835"
 };
-window.AZUR_VERSION = "1.1.0";
+window.AZUR_VERSION = "1.2.0";

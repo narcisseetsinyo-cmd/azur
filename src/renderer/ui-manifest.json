@@ -1,0 +1,75 @@
+{
+ "version": "1.2.0",
+ "minShell": "1.2.0",
+ "date": "2026-10-22T16:26:42.256Z",
+ "files": [
+  {
+   "path": "app.js",
+   "sha256": "c1a911e29149ef2d66efc8ee41b60b470380c5b6d6a2f76960e0e1c1b3eaf5d3"
+  },
+  {
+   "path": "assets/logo.png",
+   "sha256": "388e86c63aff2036077f8480eaba942032ca9b7fb87950507fafefa4c82d9882"
+  },
+  {
+   "path": "assets/mark.png",
+   "sha256": "ea74c25bca604222b9466025e55057d9efffb5ff50e7052e6ffc36b83edf799f"
+  },
+  {
+   "path": "assets/mark@2x.png",
+   "sha256": "b8f52ca4408043c2c7ee456d1605b0a80a2bbe7447cbb6916df5cae53ed3f5cf"
+  },
+  {
+   "path": "auth.css",
+   "sha256": "79debfa1a810fb771c293664983b28a68379830123898b4f8a28f1eff2017331"
+  },
+  {
+   "path": "auth.js",
+   "sha256": "cc93225a43ae87d8a09fe9a1ded8630bc7829d1dd2ca787c907300808fd4d6a7"
+  },
+  {
+   "path": "cloud.js",
+   "sha256": "85e4cbb5ce3ef8cd6295846d64a215457a675e9cc47994ac675e4651e6b02944"
+  },
+  {
+   "path": "firebase-config.js",
+   "sha256": "155aa8bb42a01c28eb36f42713c5ebc53a36e5c07096c3ed0f41f44a265d5724"
+  },
+  {
+   "path": "fonts/ClashDisplay-LICENSE.txt",
+   "sha256": "8b1853b71ca0386dc2006ee2353e031a00f299b4cd5eb38b94ce6aa336212b01"
+  },
+  {
+   "path": "fonts/ClashDisplay-Variable.woff2",
+   "sha256": "dbe4b338d40d727ba0f342228d3c53d5429995264cf031fd975f6265a57da662"
+  },
+  {
+   "path": "fonts/MaterialSymbols-LICENSE.txt",
+   "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+   "path": "fonts/material-symbols-rounded.woff2",
+   "sha256": "3a0c75876e6e161f9afc145472130c25f5490c9434c0d5217d8745d155aa6183"
+  },
+  {
+   "path": "fonts/outfit-latin-ext-wght-normal.woff2",
+   "sha256": "0f53d1c03b3918d744a843b5039001ee31695ca1e255e3914188df81beb461e9"
+  },
+  {
+   "path": "fonts/outfit-latin-wght-normal.woff2",
+   "sha256": "6c18d579fd87c3776be068b762cbc83fde3acb543d49eabd3ade842eb987e887"
+  },
+  {
+   "path": "index.html",
+   "sha256": "494511149d5bf902dde359d25c23e22dd8b55001c8659dc7d9fc10d8f7312414"
+  },
+  {
+   "path": "manifest.webmanifest",
+   "sha256": "49a5fd98a44f77e63b7ede2f23d5eb20ee56d4636ff0429343127f80e69bf990"
+  },
+  {
+   "path": "styles.css",
+   "sha256": "fc91dd0a5fa0aa6fc1029d928fe83b09d8a664150898bef9c1fdd4036d66762d"
+  }
+ ]
+}
