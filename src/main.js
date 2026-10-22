@@ -6,7 +6,6 @@ const store = require("./db");
 
 let win = null;
 let db = null;
-let session = null; // { userId } — le compte connecté, connu seulement du processus principal
 
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
@@ -40,7 +39,7 @@ function createWindow() {
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", e => e.preventDefault());
-  win.on("closed", () => { win = null; session = null; });
+  win.on("closed", () => { win = null; });
 }
 
 function buildMenu() {
@@ -51,7 +50,7 @@ function buildMenu() {
       { role: "hide", label: "Masquer Azur" }, { role: "hideOthers", label: "Masquer les autres" }, { role: "unhide", label: "Tout afficher" },
       { type: "separator" }, { role: "quit", label: "Quitter Azur" }] }] : []),
     { label: "Fichier", submenu: [
-      { label: "Se déconnecter", accelerator: "CmdOrCtrl+Shift+L", click: () => { session = null; if (win) win.webContents.send("auth:locked"); } },
+      { label: "Se déconnecter", accelerator: "CmdOrCtrl+Shift+L", click: () => { if (win) win.webContents.send("auth:locked"); } },
       { type: "separator" },
       isMac ? { role: "close", label: "Fermer la fenêtre" } : { role: "quit", label: "Quitter" }] },
     { label: "Édition", submenu: [
@@ -66,11 +65,10 @@ function buildMenu() {
 }
 
 /* ---------- Pont IPC : chaque appel renvoie { ok, data } ou { ok:false, error } ---------- */
-function handle(channel, fn, needsAuth) {
+function handle(channel, fn) {
   ipcMain.handle(channel, async (event, ...args) => {
     if (!win || event.sender !== win.webContents) return { ok: false, error: { code: "forbidden", message: "Accès refusé." } };
     try {
-      if (needsAuth && !session) return { ok: false, error: { code: "unauthenticated", message: "Connecte-toi d'abord." } };
       return { ok: true, data: await fn(...args) };
     } catch (e) {
       return { ok: false, error: { code: e.code || "error", message: e.message || "Une erreur est survenue.", retryIn: e.retryIn || 0 } };
@@ -79,20 +77,18 @@ function handle(channel, fn, needsAuth) {
 }
 
 function registerIpc() {
-  handle("auth:list", () => db.listAccounts());
-  handle("auth:session", () => (session ? db.listAccounts().find(a => a.id === session.userId) || null : null));
-  handle("auth:register", p => { const r = db.register(p || {}); session = { userId: r.user.id }; return r; });
-  handle("auth:login", p => { const u = db.login(p || {}); session = { userId: u.id }; return u; });
-  handle("auth:reset", p => { const r = db.resetPassword(p || {}); session = { userId: r.user.id }; return r; });
-  handle("auth:logout", () => { session = null; return true; });
-  handle("account:changePassword", (a, b) => db.changePassword(session.userId, a, b), true);
-  handle("account:newRecoveryCode", pw => db.newRecoveryCode(session.userId, pw), true);
-  handle("account:rename", n => db.rename(session.userId, n), true);
-  handle("account:delete", pw => { db.deleteAccount(session.userId, pw); session = null; return true; }, true);
-  handle("data:load", () => db.loadState(session.userId), true);
-  handle("data:saveConfig", c => db.saveConfig(session.userId, c), true);
-  handle("data:replaceMonth", (m, items) => db.replaceMonth(session.userId, m, items), true);
-  handle("data:replaceAll", s => db.replaceAll(session.userId, s), true);
+  // Base locale de la version 1.0 : utilisée seulement pour importer les anciennes données
+  const legacyDb = () => {
+    if (!db) { const f = dbFile(); if (!fs.existsSync(f)) return null; db = store.open(f); }
+    return db;
+  };
+  handle("legacy:list", () => { const d = legacyDb(); return d ? d.listAccounts() : []; });
+  handle("legacy:load", (id, password) => {
+    const d = legacyDb();
+    if (!d) throw Object.assign(new Error("Aucune donnée de la version 1.0 sur cet ordinateur."), { code: "none" });
+    d.login({ id, password });
+    return d.loadState(id);
+  });
   handle("file:save", async (filename, text) => {
     const ext = path.extname(String(filename || "")).slice(1).toLowerCase();
     if (!["csv", "json"].includes(ext)) throw Object.assign(new Error("Format non pris en charge."), { code: "bad_ext" });
@@ -104,17 +100,15 @@ function registerIpc() {
     if (r.canceled || !r.filePath) return { saved: false };
     await fs.promises.writeFile(r.filePath, String(text), "utf8");
     return { saved: true, path: r.filePath };
-  }, true);
-  handle("app:info", () => ({ version: app.getVersion(), dbFile: db.file, platform: process.platform, dark: nativeTheme.shouldUseDarkColors }));
-  handle("app:showDb", () => { shell.showItemInFolder(db.file); return true; }, true);
+  });
+  handle("app:info", () => ({ version: app.getVersion(), platform: process.platform, dark: nativeTheme.shouldUseDarkColors }));
 }
 
 app.whenReady().then(() => {
-  db = store.open(dbFile());
   registerIpc();
   buildMenu();
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("window-all-closed", () => { session = null; if (process.platform !== "darwin") app.quit(); });
+app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("before-quit", () => { try { db && db.close(); } catch (e) { /* déjà fermée */ } });

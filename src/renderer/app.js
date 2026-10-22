@@ -309,12 +309,12 @@ function vSettings(){
     <div class="status"><span class="avatar lg">${esc(initials(session.user.displayName))}</span><div style="min-width:0"><strong>${esc(session.user.displayName)}</strong><p class="small muted">${session.user.kind==="email"?"Compte Gmail":"Compte téléphone"} · ${esc(session.user.masked)}</p></div></div>
     <div class="set-row"><div><strong>Nom affiché</strong><small>Visible sur l'écran de connexion de cet ordinateur</small></div><button class="btn" data-act="acc-rename" type="button">${ms("badge")}Modifier</button></div>
     <div class="set-row"><div><strong>Mot de passe</strong><small>Change-le régulièrement et ne le partage avec personne</small></div><button class="btn" data-act="acc-password" type="button">${ms("password")}Changer</button></div>
-    <div class="set-row"><div><strong>Code de secours</strong><small>Il permet de choisir un nouveau mot de passe si tu l'oublies</small></div><button class="btn" data-act="acc-code" type="button">${ms("key")}Nouveau code</button></div>
+    ${session.user.kind==="email"?`<div class="set-row"><div><strong>Mot de passe oublié</strong><small>Reçois sur ta boîte Gmail un lien pour choisir un nouveau mot de passe</small></div><button class="btn" data-act="acc-reset" type="button">${ms("mail")}Recevoir le lien</button></div>`:`<div class="set-row"><div><strong>Récupération du mot de passe</strong><small>Un compte téléphone ne peut pas recevoir d'e-mail de réinitialisation. Garde ton mot de passe en lieu sûr.</small></div></div>`}
     <div class="set-row"><div><strong>Se déconnecter</strong><small>Retour à l'écran de connexion</small></div><button class="btn" data-act="logout" type="button">${ms("logout")}Se déconnecter</button></div>
   </section>
-  <section class="card set-sec" style="--i:1"><h2>Stockage</h2>
-    <div class="status"><span class="ic" style="--c:var(--in)">${ms("database")}</span><div><strong>Base de données locale</strong><p class="small muted">Tes données sont enregistrées dans un fichier sur cet ordinateur, séparées de celles des autres comptes. Rien n'est envoyé sur Internet. Fais une sauvegarde de temps en temps, par exemple sur une clé USB.</p></div></div>
-    <div class="btn-row"><button class="btn sm" data-act="show-db" type="button">${ms("folder_open")}Afficher le fichier de la base</button></div>
+  <section class="card set-sec" style="--i:1"><h2>Synchronisation</h2>
+    <div class="status" id="sync-card">${syncCardHtml()}</div>
+    ${window.azur.legacy?`<div class="set-row"><div><strong>Données de la version 1.0</strong><small>Récupère les opérations enregistrées sur cet ordinateur avant la synchronisation</small></div><button class="btn" data-act="legacy-open" type="button">${ms("move_to_inbox")}Importer</button></div>`:""}
   </section>
   <section class="card set-sec" style="--i:2"><h2>Préférences</h2>
     <div class="set-row"><div><strong>Devise</strong><small>Utilisée pour tous les montants</small></div><select class="input" id="set-currency" data-set="currency">${Object.entries(CURRENCIES).map(([k,v])=>`<option value="${k}" ${c.currency===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
@@ -389,7 +389,7 @@ function openSheet(html,ctx,cls){
   return o.querySelector(".sheet");
 }
 function closeSheet(now){
-  if(!sheet)return;const {el,prevFocus}=sheet;sheet=null;document.body.style.overflow="";
+  if(!sheet)return;setTimeout(()=>{if(!sheet&&remoteState)applyRemote();},260);const {el,prevFocus}=sheet;sheet=null;document.body.style.overflow="";
   if(now||reduced){el.remove();}else{el.classList.add("closing");setTimeout(()=>el.remove(),200);}
   if(prevFocus&&prevFocus.focus&&document.contains(prevFocus))try{prevFocus.focus({preventScroll:true});}catch(e){}
 }
@@ -700,10 +700,11 @@ document.addEventListener("click",e=>{
     case "goal-delete":{const gid=sheet.ctx.st.id;closeSheet(true);const g=S.config.goals.find(x=>x.id===gid);confirmBox("Supprimer l'objectif ?",`« ${g?g.name:""} » sera supprimé. Les opérations d'épargne liées restent dans ton historique.`,"Supprimer",()=>{S.config.goals=S.config.goals.filter(x=>x.id!==gid);persist(["config"]);render(true);toast("Objectif supprimé");});break;}
     case "cat-new":openCat();break;
     case "logout":logout();break;
-    case "show-db":window.azur.app.showDb();break;
     case "acc-rename":openAccount("rename");break;
     case "acc-password":openAccount("password");break;
-    case "acc-code":openAccount("code");break;
+    case "acc-reset":(async()=>{const r=await window.azur.account.sendReset();toast(r.ok?`Lien envoyé à ${r.data}. Vérifie aussi les courriers indésirables.`:r.error.message);})();break;
+    case "legacy-open":openLegacy();break;
+    case "legacy-go":legacyImport();break;
     case "acc-delete":openAccount("delete");break;
     case "acc-submit":submitAccount();break;
     case "copy-code":copyText(a.dataset.code);break;
@@ -731,7 +732,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&sheet){closeSheet();return;}
   if((e.key==="Enter"||e.key===" ")&&e.target.classList&&e.target.classList.contains("tx-main")){e.preventDefault();e.target.click();}
-  if(e.key==="Enter"&&sheet&&e.target.tagName==="INPUT"&&e.target.type!=="checkbox"){const k=sheet.ctx.kind;if(k==="tx")saveTx();else if(k==="goal")saveGoal();else if(k==="cat")$('[data-act="cat-save"]').click();else if(k==="catedit")$('[data-act="catedit-save"]').click();else if(k==="account")submitAccount();}
+  if(e.key==="Enter"&&sheet&&e.target.tagName==="INPUT"&&e.target.type!=="checkbox"){const k=sheet.ctx.kind;if(k==="tx")saveTx();else if(k==="goal")saveGoal();else if(k==="cat")$('[data-act="cat-save"]').click();else if(k==="catedit")$('[data-act="catedit-save"]').click();else if(k==="account")submitAccount();else if(k==="legacy")legacyImport();}
 });
 document.addEventListener("input",e=>{
   const t=e.target;
@@ -798,6 +799,61 @@ document.addEventListener("pointerdown",e=>{
 },{passive:true});
 
 /* ---------- Démarrage ---------- */
+/* ---------- Synchronisation ---------- */
+let stopRemote=null,stopStatus=null,remoteState=null;
+const SYNC={synced:["cloud_done","Synchronisé","var(--in)"],pending:["cloud_sync","Envoi en cours…","var(--accent)"],connecting:["cloud_sync","Connexion…","var(--accent)"],offline:["cloud_off","Hors ligne","var(--gift)"]};
+function syncCardHtml(){const st=(window.azur.sync.status()||{}).state||"offline";const [ic,lb,c]=SYNC[st]||SYNC.offline;
+  return `<span class="ic" style="--c:${c}">${ms(ic)}</span><div><strong>${lb}</strong><p class="small muted">${st==="offline"?"Pas de connexion Internet. Continue normalement : tes changements sont gardés sur cet appareil et seront envoyés dès que la connexion reviendra.":"Tes données sont enregistrées dans ton compte Azur en ligne et se mettent à jour toutes seules sur tes autres appareils : Mac, Windows et version web. Une copie reste sur cet appareil pour travailler hors ligne."}</p></div>`;}
+function renderSync(st){
+  const el=$("#sync");const [ic,lb,c]=SYNC[st.state]||SYNC.offline;
+  if(el){el.innerHTML=`${ms(ic)}<span>${lb}</span>`;el.style.setProperty("--c",c);el.title=lb;}
+  const card=$("#sync-card");if(card)card.innerHTML=syncCardHtml();
+}
+function applyRemote(){
+  if(!remoteState||!session.user)return;
+  if(sheet)return; // on attend la fermeture de la fenêtre en cours
+  const next={config:{...defaultConfig(),...(remoteState.config||{})},tx:remoteState.tx||{}};
+  const sameTx=JSON.stringify(Object.values(next.tx).flat().map(t=>t.id+":"+JSON.stringify(t)).sort())===JSON.stringify(Object.values(S.tx).flat().map(t=>t.id+":"+JSON.stringify(t)).sort());
+  const sameCfg=!remoteState.config||JSON.stringify(next.config)===JSON.stringify(S.config);
+  remoteState=null;
+  if(sameTx&&sameCfg)return;
+  S=next;applyTheme();
+  const fe=document.activeElement;if(fe&&fe.dataset&&fe.dataset.budget)return; // ne pas interrompre une saisie
+  render(true);
+}
+/* Import des données de la version 1.0 (logiciel seulement) */
+async function maybeOfferLegacy(){
+  if(!window.azur.legacy)return;
+  let done=false;try{done=localStorage.getItem("azur:legacy-done:"+session.user.id)==="1";}catch(e){}
+  if(done||allTx().length)return;
+  const r=await window.azur.legacy.list();if(!r.ok||!r.data.length)return;
+  toast("Des données de la version 1.0 sont sur cet ordinateur.","Importer",openLegacy);
+}
+async function openLegacy(){
+  const r=await window.azur.legacy.list();
+  if(!r.ok||!r.data.length){toast("Aucune donnée de la version 1.0 sur cet ordinateur.");return;}
+  const sh=openSheet(`<div class="grab"></div><div class="sheet-h"><h2>Importer la version 1.0</h2><button class="icon-btn" type="button" data-act="close" aria-label="Fermer">${ms("close")}</button></div>
+    <p class="muted">Choisis l'ancien compte de cet ordinateur et saisis son mot de passe. Ses opérations, budgets et objectifs seront ajoutés à ton compte synchronisé.</p>
+    <div class="field"><span>Ancien compte</span><select class="input" id="lg-acc">${r.data.map(a=>`<option value="${esc(a.id)}">${esc(a.displayName)} · ${esc(a.masked)}</option>`).join("")}</select></div>
+    <label class="field"><span>Mot de passe de l'ancien compte</span><input class="input" type="password" id="lg-pw" autocomplete="current-password"></label>
+    <p class="err" id="lg-err"></p>
+    <div class="sheet-acts"><button class="btn primary" type="button" data-act="legacy-go">${ms("move_to_inbox")}Importer</button></div>`,{kind:"legacy"},"dialog");
+  setTimeout(()=>{const f=$("#lg-pw",sh);if(f)f.focus();},60);
+}
+async function legacyImport(){
+  const id=$("#lg-acc").value,pw=$("#lg-pw").value;
+  if(!pw){$("#lg-err").textContent="Saisis le mot de passe de l'ancien compte.";return;}
+  const r=await window.azur.legacy.load(id,pw);
+  if(!r.ok){$("#lg-err").textContent=r.error.message;return;}
+  const old=r.data||{};const keys=new Set();let n=0;
+  const have=new Set(allTx().map(t=>t.id));
+  Object.values(old.tx||{}).flat().forEach(t=>{if(!t||!t.id||have.has(t.id))return;const m=t.date.slice(0,7);(S.tx[m]=S.tx[m]||[]).push(t);keys.add("tx-"+m);n++;});
+  if(old.config){const c=old.config;S.config={...S.config,...c,budgets:{...(c.budgets||{}),...(S.config.budgets||{})},goals:[...(S.config.goals||[]),...(c.goals||[]).filter(g=>!(S.config.goals||[]).some(x=>x.id===g.id))]};keys.add("config");}
+  persist([...keys]);
+  try{localStorage.setItem("azur:legacy-done:"+session.user.id,"1");}catch(e){}
+  closeSheet();ui.anim=true;render();toast(`${n} opération${n>1?"s":""} importée${n>1?"s":""}`);
+}
+
 /* ---------- Compte ---------- */
 const initials=n=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
 const firstName=n=>String(n||"").trim().split(/\s+/)[0]||"";
@@ -841,8 +897,12 @@ window.AzurApp={
     $(".app").hidden=false;$(".tabbar").hidden=false;
     renderMe();applyRecurring();render();
     window.scrollTo(0,0);
+    stopRemote=window.azur.data.onRemote(st=>{remoteState=st;applyRemote();});
+    stopStatus=window.azur.sync.onStatus(renderSync);
+    maybeOfferLegacy();
   },
   stop(){
+    if(stopRemote)stopRemote();if(stopStatus)stopStatus();stopRemote=stopStatus=null;remoteState=null;
     session.user=null;closeSheet(true);
     S={config:defaultConfig(),tx:{}};
     $("#view").innerHTML="";$(".app").hidden=true;$(".tabbar").hidden=true;

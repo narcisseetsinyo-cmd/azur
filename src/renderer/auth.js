@@ -15,9 +15,9 @@
   root.innerHTML = `<section class="auth-art" aria-hidden="true"><div class="glow"></div>
       <div class="art-brand"><img src="assets/mark@2x.png" alt="">Azur</div>
       <div class="art-main"><h1>Ton budget, <em>clair</em> comme le ciel.</h1>
-        <p>Entrées, dépenses, semences et épargnes : tout est enregistré sur cet ordinateur et protégé par ton mot de passe.</p>
-        <div class="art-points"><div>${ms("lock")}Un compte par personne, chacun ne voit que ses chiffres</div><div>${ms("wifi_off")}Fonctionne sans connexion Internet</div><div>${ms("insights")}Plafonds, objectifs et bilan chaque mois</div></div></div>
-      <div class="art-foot">Azur · données stockées sur cet ordinateur</div></section>
+        <p>Entrées, dépenses, semences et épargnes : ton budget est protégé par ton mot de passe et synchronisé sur tous tes appareils.</p>
+        <div class="art-points"><div>${ms("lock")}Un compte par personne, chacun ne voit que ses chiffres</div><div>${ms("sync")}Synchronisé entre Mac, Windows et le web, même hors ligne</div><div>${ms("insights")}Plafonds, objectifs et bilan chaque mois</div></div></div>
+      <div class="art-foot">Azur · synchronisation sécurisée</div></section>
     <div class="auth-side"><div class="auth-card" id="auth-card"></div></div>`;
   const card = $("#auth-card");
 
@@ -27,9 +27,10 @@
   const tabs = () => `<div class="auth-tabs" role="group" aria-label="Type d'identifiant">
       <button type="button" data-a="kind" data-k="email" aria-pressed="${st.kind === "email"}">${ms("alternate_email")}Gmail</button>
       <button type="button" data-a="kind" data-k="phone" aria-pressed="${st.kind === "phone"}">${ms("smartphone")}Téléphone</button></div>`;
-  const identFields = () => st.kind === "email"
+  const phoneNote = () => st.view === "register" && st.kind === "phone" ? `<div class="notice" style="margin-top:10px">${ms("info")}<span>Avec un numéro, le mot de passe ne pourra pas être réinitialisé par e-mail en cas d'oubli. Avec une adresse Gmail, tu pourras recevoir un lien de réinitialisation.</span></div>` : "";
+  const identFields = () => (st.kind === "email"
     ? `<label class="field"><span>Adresse Gmail</span><input class="input" id="x-email" type="email" autocomplete="email" placeholder="prenom.nom@gmail.com" spellcheck="false"></label>`
-    : `<div class="field"><span>Numéro de téléphone</span><div class="phone-row"><label><span class="sr">Indicatif du pays</span><select class="input" id="x-cc">${COUNTRIES.map(([c, n]) => `<option value="${c}" ${c === st.cc ? "selected" : ""}>${n} ${c}</option>`).join("")}</select></label><label><span class="sr">Numéro</span><input class="input" id="x-phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="90 12 34 56"></label></div></div>`;
+    : `<div class="field"><span>Numéro de téléphone</span><div class="phone-row"><label><span class="sr">Indicatif du pays</span><select class="input" id="x-cc">${COUNTRIES.map(([c, n]) => `<option value="${c}" ${c === st.cc ? "selected" : ""}>${n} ${c}</option>`).join("")}</select></label><label><span class="sr">Numéro</span><input class="input" id="x-phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="90 12 34 56"></label></div></div>`) + phoneNote();
   const pwField = (id, label, ac, meter) => `<label class="field"><span>${label}</span><div class="pw-wrap"><input class="input" id="${id}" type="password" autocomplete="${ac}"><button class="icon-btn" type="button" data-a="eye" data-for="${id}" aria-label="Afficher le mot de passe">${ms("visibility")}</button></div>${meter ? `<div class="strength" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="strength-label" id="${id}-meter">Au moins 8 caractères, avec une lettre et un chiffre</div>` : ""}</label>`;
   const err = `<p class="err" id="x-err" role="alert"></p>`;
 
@@ -43,24 +44,23 @@
         <div class="picked"><span class="avatar">${esc(initials(st.picked.displayName))}</span><div><strong>${esc(st.picked.displayName)}</strong><small>${esc(st.picked.masked)}</small></div><button class="link" type="button" data-a="go" data-v="pick">Changer</button></div>
         <form class="auth-form" data-f="login" novalidate>${pwField("x-pw", "Mot de passe", "current-password")}${err}<button class="btn primary lg block" type="submit">${ms("lock_open")}Se connecter</button></form>
         <p class="auth-switch"><button class="link" type="button" data-a="go" data-v="forgot">Mot de passe oublié ?</button></p>`
-      : `${logo}${notice()}<div><h2>Se connecter</h2><p class="lead">Avec l'adresse Gmail ou le numéro utilisé à la création du compte.</p></div>
+      : `${logo}${notice()}<div><h2>Se connecter</h2><p class="lead">Avec l'adresse Gmail ou le numéro utilisé à la création du compte, sur n'importe quel appareil.</p></div>
         <form class="auth-form" data-f="login" novalidate>${tabs()}<div id="ident">${identFields()}</div>${pwField("x-pw", "Mot de passe", "current-password")}${err}<button class="btn primary lg block" type="submit">${ms("lock_open")}Se connecter</button></form>
         <p class="auth-switch"><button class="link" type="button" data-a="go" data-v="forgot">Mot de passe oublié ?</button></p>
         <p class="auth-switch">${st.accounts.length ? `<button class="link" type="button" data-a="go" data-v="pick">Voir les comptes de cet ordinateur</button> · ` : ""}<button class="link" type="button" data-a="go" data-v="register">Créer un compte</button></p>`,
-    register: () => `${logo}${notice()}<div><h2>${st.accounts.length ? "Créer un compte" : "Bienvenue dans Azur"}</h2><p class="lead">${st.accounts.length ? "Chaque personne a son propre compte et ne voit que ses chiffres." : "Crée ton compte pour commencer. Il reste sur cet ordinateur, protégé par ton mot de passe."}</p></div>
+    register: () => `${logo}${notice()}<div><h2>${st.accounts.length ? "Créer un compte" : "Bienvenue dans Azur"}</h2><p class="lead">${st.accounts.length ? "Chaque personne a son propre compte et ne voit que ses chiffres." : "Crée ton compte pour commencer. Tes données seront synchronisées sur tous tes appareils."}</p></div>
       <form class="auth-form" data-f="register" novalidate>
         <label class="field"><span>Prénom et nom</span><input class="input" id="x-name" maxlength="40" autocomplete="name" placeholder="Ama Mensah"></label>
         ${tabs()}<div id="ident">${identFields()}</div>
         ${pwField("x-pw", "Mot de passe", "new-password", true)}${pwField("x-pw2", "Confirme le mot de passe", "new-password")}
         ${err}<button class="btn primary lg block" type="submit">${ms("person_add")}Créer mon compte</button></form>
-      ${st.accounts.length ? `<p class="auth-switch">Déjà un compte ? <button class="link" type="button" data-a="go" data-v="pick">Se connecter</button></p>` : `<p class="auth-switch">Ton compte existe déjà sur cet ordinateur ? <button class="link" type="button" data-a="go" data-v="login">Se connecter</button></p>`}`,
-    forgot: () => `${logo}<div><h2>Mot de passe oublié</h2><p class="lead">Utilise le code de secours affiché à la création de ton compte pour choisir un nouveau mot de passe.</p></div>
+      ${st.accounts.length ? `<p class="auth-switch">Déjà un compte ? <button class="link" type="button" data-a="go" data-v="pick">Se connecter</button></p>` : `<p class="auth-switch">Tu as déjà un compte Azur ? <button class="link" type="button" data-a="go" data-v="login">Se connecter</button></p>`}`,
+    forgot: () => `${logo}${notice()}<div><h2>Mot de passe oublié</h2><p class="lead">Pour un compte Gmail, Azur t'envoie un lien pour choisir un nouveau mot de passe.</p></div>
       <form class="auth-form" data-f="forgot" novalidate>${tabs()}<div id="ident">${identFields()}</div>
-        <label class="field"><span>Code de secours</span><input class="input" id="x-code" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH-JKLM" style="text-transform:uppercase;letter-spacing:.06em"></label>
-        ${pwField("x-pw", "Nouveau mot de passe", "new-password", true)}${pwField("x-pw2", "Confirme le nouveau mot de passe", "new-password")}
-        ${err}<button class="btn primary lg block" type="submit">${ms("key")}Changer le mot de passe</button></form>
-      <div class="notice">${ms("shield")}<span>Sans le code de secours, le mot de passe ne peut pas être récupéré. C'est ce qui protège tes données si quelqu'un d'autre utilise cet ordinateur.</span></div>
+        ${err}<button class="btn primary lg block" type="submit">${ms("mail")}Recevoir le lien par e-mail</button></form>
+      <div class="notice">${ms("smartphone")}<span>Les comptes créés avec un numéro de téléphone ne peuvent pas recevoir de lien. Si tu as oublié ce mot de passe, crée un nouveau compte avec ton adresse Gmail.</span></div>
       <p class="auth-switch"><button class="link" type="button" data-a="go" data-v="${st.accounts.length ? "pick" : "login"}">Retour à la connexion</button></p>`,
+    setup: () => `${logo}<div><h2>Azur n'est pas encore relié</h2><p class="lead">Cette version attend la configuration Firebase du projet. Ajoute-la dans <code>src/renderer/firebase-config.js</code>, puis relance l'application.</p></div>`,
     code: () => `${logo}<div class="notice ok">${ms("check_circle")}<span>${esc(st.codeTitle)}</span></div>
       <div><h2>Ton code de secours</h2><p class="lead">Si tu oublies ton mot de passe, ce code te permettra d'en choisir un nouveau. Note-le sur papier et garde-le en lieu sûr : il ne sera plus affiché.</p></div>
       <div class="code-box" id="x-codebox">${esc(st.code)}</div>
@@ -172,20 +172,18 @@
       const r = await window.azur.auth.register({ kind: st.kind, identifier: ident, displayName, password: pw });
       busy(form, false);
       if (!r.ok) return setErr(r.error.message);
-      Object.assign(st, { user: r.data.user, code: r.data.recoveryCode, codeTitle: `Compte créé. Bienvenue, ${firstName(r.data.user.displayName)} !`, view: "code" });
-      render();
+      return enter(r.data.user);
     }
     else if (f === "forgot") {
-      const ident = identifier(), code = val("x-code"), pw = $("#x-pw").value, pw2 = $("#x-pw2").value;
-      if (!ident) return setErr(st.kind === "email" ? "Saisis ton adresse Gmail." : "Saisis ton numéro de téléphone.");
-      if (!code) return setErr("Saisis ton code de secours.");
-      if (pw !== pw2) return setErr("Les deux mots de passe ne sont pas identiques.");
-      busy(form, true, "Vérification…");
-      const r = await window.azur.auth.reset({ kind: st.kind, identifier: ident, recoveryCode: code, newPassword: pw });
+      if (st.kind !== "email") return setErr("Choisis Gmail : seuls les comptes Gmail peuvent recevoir un lien.");
+      const ident = identifier();
+      if (!ident) return setErr("Saisis ton adresse Gmail.");
+      busy(form, true, "Envoi…");
+      const r = await window.azur.auth.reset({ kind: "email", identifier: ident });
       busy(form, false);
       if (!r.ok) return setErr(r.error.message);
-      Object.assign(st, { user: r.data.user, code: r.data.recoveryCode, codeTitle: "Mot de passe changé. Voici ton nouveau code de secours : l'ancien ne fonctionne plus.", view: "code" });
-      render();
+      st.msg = `Si un compte existe pour ${r.data.email}, un e-mail vient d'être envoyé. Ouvre le lien, choisis un nouveau mot de passe, puis reviens te connecter. Pense à regarder dans les courriers indésirables.`;
+      st.view = st.accounts.length ? "pick" : "login"; st.picked = null; render();
     }
   });
 
@@ -206,6 +204,7 @@
   window.AzurAuth = { show };
 
   (async () => {
+    if (!window.azur.configured) { st.view = "setup"; root.hidden = false; render(false); return; }
     const s = await window.azur.auth.session();
     if (s.ok && s.data) { root.hidden = true; window.AzurApp.start(s.data); }
     else show();

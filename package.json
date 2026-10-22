@@ -1,7 +1,7 @@
 {
   "name": "azur",
   "productName": "Azur",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Azur, ton budget mensuel personnel",
   "author": "Éternel Élégance",
   "license": "UNLICENSED",
@@ -13,14 +13,20 @@
     "dist:win": "electron-builder --win --x64",
     "dist:mac": "electron-builder --mac --x64 --arm64",
     "dist:linux": "electron-builder --linux AppImage",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "build:cloud": "esbuild src/renderer/cloud.src.js --bundle --format=iife --target=es2020 --minify --legal-comments=none --outfile=src/renderer/cloud.js",
+    "build:web": "node scripts/build-web.js",
+    "test:sync": "firebase emulators:exec --only auth,firestore --project demo-azur \"node test/sync.e2e.mjs\""
   },
   "dependencies": {
     "better-sqlite3": "13.0.3"
   },
   "devDependencies": {
     "electron": "43.7.7",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "firebase": "12.19.0",
+    "playwright": "1.56.0"
   },
   "build": {
     "appId": "com.eternelelegance.azur",
@@ -32,6 +38,7 @@
     },
     "files": [
       "src/**/*",
+      "!src/renderer/cloud.src.js",
       "build/icon.png",
       "package.json"
     ],

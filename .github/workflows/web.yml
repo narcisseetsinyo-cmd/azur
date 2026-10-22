@@ -1,0 +1,64 @@
+name: Version web et test de synchronisation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test-sync:
+    name: Tester la synchronisation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --ignore-scripts
+      - name: Préparer le navigateur de test
+        run: npx playwright install --with-deps chromium
+      - name: Lancer le test sur l'émulateur Firebase
+        run: npx --yes firebase-tools@15.32.1 emulators:exec --only auth,firestore --project demo-azur "node test/sync.e2e.mjs"
+      - name: Résultats
+        if: always()
+        shell: bash
+        run: |
+          if [ -f sync-results.txt ]; then
+            while IFS= read -r line; do
+              case "$line" in OK*) echo "::notice title=Synchronisation::$line";; *) echo "::error title=Synchronisation::$line";; esac
+            done < sync-results.txt
+          fi
+
+  deploy:
+    name: Publier la version web
+    needs: test-sync
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node scripts/build-web.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web-dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

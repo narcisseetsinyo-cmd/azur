@@ -1,4 +1,8 @@
 node_modules/
 dist/
+web-dist/
 *.sqlite*
 .DS_Store
+sync-results.txt
+firebase-debug.log
+firestore-debug.log
