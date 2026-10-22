@@ -2,6 +2,11 @@ name: Fabriquer les installateurs
 
 on:
   workflow_dispatch:
+    inputs:
+      publier:
+        description: "Publier une version officielle (page Releases)"
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -62,8 +67,31 @@ jobs:
           path: ${{ matrix.files }}
           if-no-files-found: error
 
-      - name: Publier la version
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+
+  release:
+    name: Publier la version
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || inputs.publier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v5
         with:
-          files: ${{ matrix.files }}
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Azur ${{ steps.v.outputs.version }}
+          body: |
+            Azur, ton budget mensuel personnel, pour Windows et Mac.
+
+            - **Windows** : `Azur-Setup-${{ steps.v.outputs.version }}.exe`
+            - **Mac M1, M2, M3, M4** : `Azur-${{ steps.v.outputs.version }}-arm64.dmg`
+            - **Mac Intel** : `Azur-${{ steps.v.outputs.version }}-x64.dmg`
+
+            Au premier lancement, Windows ou macOS peut afficher un avertissement car le logiciel n'est pas encore signé. Voir le guide dans le README.
+          files: out/*
