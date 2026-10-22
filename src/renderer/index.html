@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Azur</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body>
+<div id="auth" class="auth" hidden></div>
+<div class="ambient" aria-hidden="true"></div>
+<div class="app" hidden>
+  <aside class="rail" aria-label="Navigation principale">
+    <div class="brand"><img src="assets/mark.png" srcset="assets/mark@2x.png 2x" alt="" width="32" height="32">Azur</div>
+    <button class="btn primary" data-act="add" type="button"><span class="ms">add</span>Nouvelle opération</button>
+    <button class="nav" data-nav="home" type="button"><span class="ms">space_dashboard</span>Accueil</button>
+    <button class="nav" data-nav="ops" type="button"><span class="ms">receipt_long</span>Opérations</button>
+    <button class="nav" data-nav="budgets" type="button"><span class="ms">donut_small</span>Budgets</button>
+    <button class="nav" data-nav="goals" type="button"><span class="ms">flag</span>Objectifs</button>
+    <button class="nav" data-nav="stats" type="button"><span class="ms">monitoring</span>Statistiques</button>
+    <div class="grow"></div>
+    <button class="nav" data-nav="settings" type="button"><span class="ms">settings</span>Paramètres</button>
+    <div class="me" id="rail-me"></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="brand"><img src="assets/mark.png" srcset="assets/mark@2x.png 2x" alt="" width="32" height="32">Azur</div>
+      <div class="top-spacer"></div>
+      <div class="period" id="period">
+        <button class="icon-btn" data-act="prev" type="button" aria-label="Mois précédent"><span class="ms">chevron_left</span></button>
+        <div class="period-mid"><strong id="period-label">…</strong><small id="period-range"></small></div>
+        <button class="icon-btn" data-act="next" type="button" aria-label="Mois suivant"><span class="ms">chevron_right</span></button>
+      </div>
+      <button class="icon-btn solid hide-lg" data-nav="stats" type="button" aria-label="Statistiques"><span class="ms">monitoring</span></button>
+      <button class="icon-btn solid hide-lg" data-nav="settings" type="button" aria-label="Paramètres"><span class="ms">settings</span></button>
+    </header>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+<nav class="tabbar" aria-label="Navigation" hidden>
+  <button class="tab" data-nav="home" type="button"><span class="ms">space_dashboard</span>Accueil</button>
+  <button class="tab" data-nav="ops" type="button"><span class="ms">receipt_long</span>Opérations</button>
+  <button class="fab" data-act="add" type="button" aria-label="Ajouter une opération"><span class="ms">add</span></button>
+  <button class="tab" data-nav="budgets" type="button"><span class="ms">donut_small</span>Budgets</button>
+  <button class="tab" data-nav="goals" type="button"><span class="ms">flag</span>Objectifs</button>
+</nav>
+<div id="layer"></div>
+<input type="file" id="import-file" accept="application/json,.json" hidden>
+<script src="app.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+/* Écran de connexion d'Azur + éléments de compte */
+.auth{position:fixed;inset:0;z-index:80;display:grid;grid-template-columns:minmax(0,1fr);background:var(--bg);overflow:auto}
+@media(min-width:900px){.auth{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
+.auth-art{display:none;position:relative;overflow:hidden;isolation:isolate;padding:48px;color:var(--hero-fg);background:linear-gradient(150deg,#050B1A 0%,#0F1F44 45%,#1E3A7B 85%,#2E6FD8 130%)}
+@media(min-width:900px){.auth-art{display:flex;flex-direction:column;justify-content:space-between}}
+.auth-art::before,.auth-art::after{content:"";position:absolute;border-radius:50%;z-index:-1;border:1px solid rgba(181,222,250,.16)}
+.auth-art::before{width:720px;height:720px;right:-320px;bottom:-360px;box-shadow:0 0 0 70px rgba(181,222,250,.035),0 0 0 140px rgba(181,222,250,.025)}
+.auth-art::after{width:260px;height:260px;right:-90px;top:-90px;background:radial-gradient(circle at 35% 65%,#4FA3E8,#0BB0F6);border:0;opacity:.85}
+.auth-art .glow{position:absolute;inset:0;z-index:-1;background:radial-gradient(500px circle at var(--mx,30%) var(--my,40%),rgba(79,163,232,.22),transparent 60%)}
+.art-brand{display:flex;align-items:center;gap:14px;font-family:var(--font-display);font-weight:600;font-size:28px}
+.art-brand img{width:52px;height:52px;border-radius:15px;box-shadow:0 14px 30px -12px rgba(11,176,246,.7)}
+.art-main h1{font-size:clamp(40px,4.4vw,64px);line-height:1.02;letter-spacing:-.025em;max-width:11ch;color:#F4FAFF}
+.art-main h1 em{font-style:normal;color:#7CC4F5}
+.art-main p{margin-top:18px;max-width:42ch;color:#B5DEFA;font-size:17px}
+.art-points{display:flex;flex-direction:column;gap:12px;margin-top:30px}
+.art-points div{display:flex;align-items:center;gap:12px;color:#E3F2FD}
+.art-points .ms{color:#7CC4F5;background:rgba(124,196,245,.12);border-radius:12px;padding:8px;width:auto;font-size:20px}
+.art-foot{font-size:13px;color:#8FA3C2}
+.auth-side{display:flex;align-items:center;justify-content:center;padding:40px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));min-height:100%}
+.auth-card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:18px;animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.auth-logo{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-weight:600;font-size:24px}
+.auth-logo img{width:44px;height:44px;border-radius:13px}
+@media(min-width:900px){.auth-logo{display:none}}
+.auth-card h2{font-size:28px;line-height:1.1}
+.auth-card .lead{color:var(--fg-2);margin-top:6px}
+.auth-form{display:flex;flex-direction:column;gap:14px}
+.pw-wrap{position:relative}
+.pw-wrap .input{padding-right:48px}
+.pw-wrap .icon-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%)}
+.phone-row{display:grid;grid-template-columns:132px minmax(0,1fr);gap:8px}
+.strength{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:2px}
+.strength i{height:4px;border-radius:4px;background:var(--surface-3);transition:background .3s}
+.strength-label{font-size:12px;color:var(--fg-2);margin-top:4px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:4px;gap:4px}
+.auth-tabs button{border:0;background:transparent;color:var(--fg-2);min-height:42px;border-radius:12px;font:500 14px var(--font-body);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
+.auth-tabs button .ms{font-size:20px}
+.auth-tabs button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 4px 14px -6px rgba(0,0,0,.35)}
+.auth-switch{text-align:center;color:var(--fg-2);font-size:14px}
+.link{border:0;background:transparent;color:var(--accent);font:600 14px var(--font-body);cursor:pointer;padding:4px;border-radius:8px}
+.link:hover{text-decoration:underline;text-underline-offset:3px}
+.accounts{display:flex;flex-direction:column;gap:8px}
+.acc{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;border:1px solid var(--line);background:var(--surface);cursor:pointer;text-align:left;transition:border-color .2s,transform .2s;width:100%;color:var(--fg)}
+.acc:hover{border-color:var(--accent);transform:translateY(-1px)}
+.acc>div{flex:1;min-width:0}
+.acc strong{display:block;font-weight:600}
+.acc small{display:block;color:var(--fg-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc .ms{color:var(--fg-3)}
+.avatar{width:42px;height:42px;border-radius:14px;flex:none;display:grid;place-items:center;font-family:var(--font-display);font-weight:600;font-size:16px;color:#F4FAFF;background:linear-gradient(135deg,#1E3A7B,#4FA3E8)}
+.avatar.lg{width:52px;height:52px;border-radius:16px;font-size:19px}
+.picked{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:var(--surface-2)}
+.picked>div{flex:1;min-width:0}
+.picked strong{display:block}
+.picked small{color:var(--fg-2);font-size:13px}
+.code-box{font-family:var(--font-display);font-weight:600;font-size:30px;letter-spacing:.08em;text-align:center;padding:18px;border-radius:18px;background:var(--surface-2);border:1px dashed var(--line-strong);color:var(--fg);user-select:all;font-variant-numeric:tabular-nums}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--fg-2);cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent);margin:0;flex:none}
+.notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);font-size:13.5px;color:var(--fg-2)}
+.notice .ms{color:var(--accent);font-size:20px}
+.notice.ok{background:color-mix(in srgb,var(--in) 10%,transparent);border-color:color-mix(in srgb,var(--in) 30%,transparent)}
+.notice.ok .ms{color:var(--in)}
+.btn.lg{min-height:52px;font-size:16px;border-radius:16px}
+.btn[disabled]{opacity:.55;cursor:progress}
+.me{display:flex;align-items:center;gap:10px;padding:10px;margin-top:6px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line)}
+.me .avatar{width:36px;height:36px;border-radius:12px;font-size:14px}
+.me>div{flex:1;min-width:0}
+.me strong{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me small{display:block;font-size:12px;color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
