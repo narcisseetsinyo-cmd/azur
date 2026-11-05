@@ -16,7 +16,8 @@
     "postinstall": "electron-builder install-app-deps",
     "build:cloud": "esbuild src/renderer/cloud.src.js --bundle --format=iife --target=es2020 --minify --legal-comments=none --outfile=src/renderer/cloud.js",
     "build:web": "node scripts/build-web.js",
-    "test:sync": "firebase emulators:exec --only auth,firestore --project demo-azur \"node test/sync.e2e.mjs\""
+    "test:sync": "firebase emulators:exec --only auth,firestore --project demo-azur \"node test/sync.e2e.mjs\"",
+    "test:visual": "node test/visual/check.mjs visual-out"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",
@@ -108,6 +109,6 @@
       }
     ]
   },
-  "azurUi": "1.2.0",
+  "azurUi": "1.2.1",
   "azurMinShell": "1.2.0"
 }

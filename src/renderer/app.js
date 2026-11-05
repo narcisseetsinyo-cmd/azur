@@ -46,8 +46,8 @@ const findTx=id=>allTx().find(t=>t.id===id);
 const cats=type=>[...DEFAULT_CATS[type].map(([id,label,icon])=>({id,label:((S.config.catNames||{})[id])||label,icon:((S.config.catIcons||{})[id])||icon})),...((S.config.customCats||{})[type]||[]).map(c=>({...c,custom:true}))];
 const catOf=t=>cats(t.type).find(c=>c.id===t.cat)||{id:t.cat,label:t.catLabel||"Sans catégorie",icon:"label"};
 const cur=()=>CURRENCIES[S.config.currency]||CURRENCIES.FCFA;
-function num(n){const c=cur();return Math.abs(n).toLocaleString("fr-FR",{minimumFractionDigits:c.dec,maximumFractionDigits:c.dec}).replace(/[  ]/g," ");}
-function fmt(n,sign){const pre=sign?(n>0?"+ ":n<0?"− ":""):(n<0?"− ":"");return `${pre}${num(n)} ${cur().sym}`;}
+function num(n){const c=cur();return Math.abs(n).toLocaleString("fr-FR",{minimumFractionDigits:c.dec,maximumFractionDigits:c.dec}).replace(/[\u202f\u00a0 ]/g,"\u00a0");}
+function fmt(n,sign){const pre=sign?(n>0?"+\u00a0":n<0?"\u2212\u00a0":""):(n<0?"\u2212\u00a0":"");return `${pre}${num(n)}\u00a0${cur().sym}`;}
 function short(n){const v=Math.abs(n);if(v>=1e6)return (v/1e6).toLocaleString("fr-FR",{maximumFractionDigits:1})+" M";if(v>=1e3)return Math.round(v/1e3).toLocaleString("fr-FR")+" k";return Math.round(v)+"";}
 const parseAmt=s=>{const v=parseFloat(String(s).replace(/[\s  ]/g,"").replace(",","."));return isFinite(v)?v:0;};
 function period(offset=ui.offset){
@@ -360,7 +360,7 @@ function render(soft){
 function countUp(root){
   $$("[data-count]",root).forEach(el=>{
     const key=el.dataset.key,to=+el.dataset.count,from=counts[key]??0;counts[key]=to;
-    const show=v=>{el.textContent=(v<0?"− ":"")+num(Math.round(v*100)/100);};
+    const show=v=>{el.textContent=(v<0?"\u2212\u00a0":"")+num(Math.round(v*100)/100);};
     if(reduced||from===to){show(to);return;}
     const t0=performance.now(),d=900;
     const step=t=>{const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);show(from+(to-from)*e);if(k<1)requestAnimationFrame(step);};

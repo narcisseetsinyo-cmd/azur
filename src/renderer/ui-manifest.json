@@ -1,11 +1,11 @@
 {
- "version": "1.2.0",
+ "version": "1.2.1",
  "minShell": "1.2.0",
- "date": "2026-10-22T16:26:42.256Z",
+ "date": "2026-11-05T09:46:14.552Z",
  "files": [
   {
    "path": "app.js",
-   "sha256": "c1a911e29149ef2d66efc8ee41b60b470380c5b6d6a2f76960e0e1c1b3eaf5d3"
+   "sha256": "c8893ff8b459e79e5a2494fb91b810cae19df9060110875a97d88b52ad2ce85e"
   },
   {
    "path": "assets/logo.png",
@@ -33,7 +33,7 @@
   },
   {
    "path": "firebase-config.js",
-   "sha256": "155aa8bb42a01c28eb36f42713c5ebc53a36e5c07096c3ed0f41f44a265d5724"
+   "sha256": "7ec5bd576b0d35e27185632fef14f66ed73aa7623f09d681761f36ec75818387"
   },
   {
    "path": "fonts/ClashDisplay-LICENSE.txt",
@@ -61,11 +61,15 @@
   },
   {
    "path": "index.html",
-   "sha256": "494511149d5bf902dde359d25c23e22dd8b55001c8659dc7d9fc10d8f7312414"
+   "sha256": "7c29da6c5b6c0f17885491ecade66ae282927bb3fae39f53d7a3b8a498dad532"
   },
   {
    "path": "manifest.webmanifest",
    "sha256": "49a5fd98a44f77e63b7ede2f23d5eb20ee56d4636ff0429343127f80e69bf990"
+  },
+  {
+   "path": "responsive.css",
+   "sha256": "7829c3361eb26d8d86132f8188c50ec0d8c0e85700fdcb333ee1891675b018b3"
   },
   {
    "path": "styles.css",

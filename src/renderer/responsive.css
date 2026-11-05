@@ -1,0 +1,120 @@
+/* Azur — adaptation à toutes les tailles d'écran (chargé en dernier).
+   Les blocs s'adaptent à la place réellement disponible (requêtes de conteneur),
+   pas seulement à la largeur de l'écran : la barre latérale ou une fenêtre étroite comptent aussi. */
+
+/* Filet de sécurité : jamais de défilement horizontal de la page */
+.app,.auth{overflow-x:clip}
+
+/* Conteneurs de référence */
+.view{container-type:inline-size;container-name:view}
+.col{container-type:inline-size;container-name:col}
+
+/* ---------- Disposition générale ---------- */
+@media (min-width:960px){
+  .home-grid,.grid-2{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container view (min-width:980px){ .home-grid{grid-template-columns:minmax(0,1.65fr) minmax(0,1fr)} }
+@container view (min-width:860px){ .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@container view (min-width:720px){ .kpis{grid-template-columns:repeat(4,minmax(0,1fr))} }
+
+/* Grands écrans : on utilise davantage la largeur */
+@media (min-width:1700px){ .view{max-width:1440px} }
+@media (min-width:2200px){ .view{max-width:1680px} body{font-size:16px} }
+
+/* ---------- Cartes par type (accueil) ---------- */
+@media (min-width:640px){ .minis{grid-template-columns:repeat(2,minmax(0,1fr))} .minis .mini:first-child{grid-column:1/-1} }
+@container col (min-width:440px){ .minis{grid-template-columns:repeat(3,minmax(0,1fr))} .minis .mini:first-child{grid-column:auto} .minis .mini:nth-child(-n+2){grid-column:span 1} }
+@container col (min-width:440px) and (max-width:719px){
+  .minis{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .minis .mini{grid-column:span 2}
+  .minis .mini:nth-child(-n+2){grid-column:span 3}
+}
+@container col (min-width:720px){ .minis{grid-template-columns:repeat(5,minmax(0,1fr))} .minis .mini{grid-column:auto} }
+.mini-val [data-count]{white-space:nowrap}
+.mini-val{font-size:clamp(18px,2.2cqi + 8px,22px)}
+
+/* ---------- Carte du solde ---------- */
+.hero-amount [data-count]{white-space:nowrap}
+@container col (max-width:440px){
+  .hero{padding:18px}
+  .hero-amount{font-size:clamp(28px,10cqi,40px)}
+  .hero-ring{width:68px;height:68px}
+  .hero-ring .lbl strong{font-size:15px}
+  .hero-ring .lbl small{font-size:9px}
+  .flow{padding:9px 10px}
+  .flow strong{font-size:14px}
+}
+@container col (max-width:330px){
+  .hero-body{flex-wrap:wrap}
+  .hero-ring{display:none}
+}
+
+/* ---------- Téléphones ---------- */
+@media (max-width:599px){
+  /* le sélecteur de mois passe sur sa propre ligne, pleine largeur */
+  .topbar{flex-wrap:wrap;row-gap:8px;padding-block:10px}
+  .period{order:10;flex:1 1 100%;justify-content:space-between}
+  .period-mid{min-width:0;flex:1}
+  h1{font-size:24px}
+  .card{padding:15px;border-radius:20px}
+  .page-h .btn{min-height:40px}
+  .kpi strong{font-size:19px}
+  .banner{padding:10px 12px}
+}
+@media (max-width:374px){
+  .tabbar{grid-template-columns:1fr 1fr 64px 1fr 1fr;padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
+  .tab{font-size:10px}
+  .fab{width:54px;height:54px;border-radius:18px}
+  .b-row{grid-template-columns:auto minmax(0,1fr) 86px;gap:9px}
+  .b-row .ic{width:34px;height:34px;border-radius:11px}
+  .types{gap:4px}
+  .type-btn{font-size:10.5px;padding:9px 0}
+  .amount input{font-size:36px}
+  .row2{grid-template-columns:minmax(0,1fr)}
+  .goal-facts{grid-template-columns:minmax(0,1fr)}
+  .split-row{grid-template-columns:auto auto minmax(0,1fr) 88px;gap:8px}
+  .sug{gap:8px}
+}
+
+/* ---------- Écrans peu hauts (téléphone en paysage, petites fenêtres) ---------- */
+@media (max-height:520px) and (max-width:959px){
+  .topbar{position:static}
+  .tabbar{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom,0px))}
+  .tab{flex-direction:row;justify-content:center;gap:6px;padding:8px 0}
+  .tab .ms{font-size:21px}
+  .fab{width:48px;height:48px;border-radius:16px;transform:translateY(-4px);margin-bottom:2px}
+  .fab:active{transform:translateY(-4px) scale(.94)}
+  .main{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .sheet{max-height:calc(100vh - 8px);gap:12px}
+  .overlay{align-items:center}
+  .sheet{border-radius:22px;border-bottom:1px solid var(--line)}
+}
+@media (max-height:520px){
+  .auth-side{padding-block:20px}
+  .auth-card{gap:12px}
+}
+
+/* ---------- Tablettes ---------- */
+@media (min-width:600px) and (max-width:959px){
+  .main{padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+  .topbar{margin-left:calc(-1*max(24px,env(safe-area-inset-left,0px)));margin-right:calc(-1*max(24px,env(safe-area-inset-right,0px)));padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+  .tabbar{padding-left:max(10%,env(safe-area-inset-left,0px));padding-right:max(10%,env(safe-area-inset-right,0px))}
+}
+/* Barre latérale plus étroite sur les petits ordinateurs */
+@media (min-width:960px) and (max-width:1179px){
+  .rail{width:216px;padding-inline:12px}
+  .rail .btn.primary{padding:0 12px;font-size:14px}
+}
+
+/* ---------- Paramètres : lignes lisibles sur grand écran ---------- */
+@container view (min-width:1000px){ .set-sec{max-width:none} }
+@container view (max-width:520px){
+  .set-row{align-items:flex-start}
+  .set-row>.btn,.set-row>.btn-row,.set-row>select,.set-row>.seg-ctl{flex:1 1 100%}
+  .set-row>.btn{justify-content:center}
+  .set-row select.input{width:100%}
+}
+
+/* La devise des petites cartes passe toujours sous le montant */
+.mini-cur{display:block;margin:2px 0 0}

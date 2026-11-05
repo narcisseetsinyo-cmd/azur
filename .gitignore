@@ -6,3 +6,4 @@ web-dist/
 sync-results.txt
 firebase-debug.log
 firestore-debug.log
+visual-out/

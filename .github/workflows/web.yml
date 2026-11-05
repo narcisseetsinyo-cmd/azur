@@ -31,6 +31,14 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Préparer le navigateur de test
         run: npx playwright install --with-deps chromium
+      - name: Vérifier l'affichage sur toutes les tailles d'écran
+        shell: bash
+        run: |
+          node test/visual/check.mjs visual-out
+          if ! grep -q "Aucun débordement" visual-out/rapport.txt; then
+            while IFS= read -r line; do echo "::error title=Affichage::$line"; done < visual-out/rapport.txt
+            exit 1
+          fi
       - name: Lancer le test sur l'émulateur Firebase
         run: npx --yes firebase-tools@15.32.1 emulators:exec --only auth,firestore --project demo-azur "node test/sync.e2e.mjs"
       - name: Résultats
