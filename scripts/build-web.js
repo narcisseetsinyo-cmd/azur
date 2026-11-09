@@ -15,6 +15,9 @@ const uiVersion = pkg.azurUi || pkg.version;
 const cfgPath = path.join(src, "firebase-config.js");
 let cfg = fs.readFileSync(cfgPath, "utf8").replace(/window\.AZUR_VERSION\s*=\s*"[^"]*";/, `window.AZUR_VERSION = "${uiVersion}";`);
 fs.writeFileSync(cfgPath, cfg);
+// Le service de mise en cache de la version web change de version à chaque publication
+const swPath = path.join(src, "sw.js");
+if (fs.existsSync(swPath)) fs.writeFileSync(swPath, fs.readFileSync(swPath, "utf8").replace(/const VERSION = "[^"]*";/, `const VERSION = "${uiVersion}";`));
 if (/AZUR_FIREBASE\s*=\s*null/.test(cfg)) console.warn("Attention : firebase-config.js ne contient pas encore la configuration Firebase.");
 
 // Manifeste : chaque fichier avec son empreinte SHA-256

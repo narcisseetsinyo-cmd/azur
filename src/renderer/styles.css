@@ -8,7 +8,7 @@ html,body{height:100%}
   /* Layout: app shell — sticky top bar + one scrolling view + bottom tab bar on phones; left rail and two-column views from 960px */
   --bg:#050B1A;--surface:#0A1630;--surface-2:#0F1F44;--surface-3:#16295A;
   --line:rgba(124,196,245,.12);--line-strong:rgba(124,196,245,.24);
-  --fg:#E6EEF9;--fg-2:#8FA3C2;--fg-3:#5E7396;
+  --fg:#E6EEF9;--fg-2:#8FA3C2;--fg-3:#7D8FB0;
   --accent:#4FA3E8;--accent-strong:#2E6FD8;--on-accent:#FFFFFF;--glow:rgba(79,163,232,.38);
   --in:#2DD4BF;--out:#FF6B81;--save:#818CF8;--gift:#FBBF24;--other:#94A3B8;
   --hero-a:#0A1630;--hero-b:#1E3A7B;--hero-c:#4FA3E8;--hero-fg:#F4FAFF;--hero-fg-2:#B5DEFA;
@@ -20,7 +20,7 @@ html,body{height:100%}
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
   --bg:#F4FAFF;--surface:#FFFFFF;--surface-2:#E9F4FD;--surface-3:#D6E9F9;
   --line:rgba(10,22,48,.09);--line-strong:rgba(10,22,48,.17);
-  --fg:#0A1630;--fg-2:#4A5D80;--fg-3:#7D8DAA;
+  --fg:#0A1630;--fg-2:#4A5D80;--fg-3:#5E6D88;
   --accent:#2E6FD8;--accent-strong:#1E3A7B;--glow:rgba(46,111,216,.28);
   --in:#0E9C8B;--out:#E0435C;--save:#5B5FE0;--gift:#C98A06;--other:#64748B;
   --scrim:rgba(10,22,48,.38);--shadow:0 24px 60px -28px rgba(10,22,48,.35);
@@ -28,7 +28,7 @@ html,body{height:100%}
 :root[data-theme="light"]{
   --bg:#F4FAFF;--surface:#FFFFFF;--surface-2:#E9F4FD;--surface-3:#D6E9F9;
   --line:rgba(10,22,48,.09);--line-strong:rgba(10,22,48,.17);
-  --fg:#0A1630;--fg-2:#4A5D80;--fg-3:#7D8DAA;
+  --fg:#0A1630;--fg-2:#4A5D80;--fg-3:#5E6D88;
   --accent:#2E6FD8;--accent-strong:#1E3A7B;--glow:rgba(46,111,216,.28);
   --in:#0E9C8B;--out:#E0435C;--save:#5B5FE0;--gift:#C98A06;--other:#64748B;
   --scrim:rgba(10,22,48,.38);--shadow:0 24px 60px -28px rgba(10,22,48,.35);

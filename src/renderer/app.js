@@ -50,17 +50,17 @@ function num(n){const c=cur();return Math.abs(n).toLocaleString("fr-FR",{minimum
 function fmt(n,sign){const pre=sign?(n>0?"+\u00a0":n<0?"\u2212\u00a0":""):(n<0?"\u2212\u00a0":"");return `${pre}${num(n)}\u00a0${cur().sym}`;}
 function short(n){const v=Math.abs(n);if(v>=1e6)return (v/1e6).toLocaleString("fr-FR",{maximumFractionDigits:1})+" M";if(v>=1e3)return Math.round(v/1e3).toLocaleString("fr-FR")+" k";return Math.round(v)+"";}
 const parseAmt=s=>{const v=parseFloat(String(s).replace(/[\s  ]/g,"").replace(",","."));return isFinite(v)?v:0;};
+const C=window.AzurCalc;
 function period(offset=ui.offset){
-  const sd=Math.min(28,Math.max(1,+S.config.startDay||1));const t=new Date();let y=t.getFullYear(),m=t.getMonth();
-  if(t.getDate()<sd)m--;m+=offset;
-  const start=new Date(y,m,sd),end=new Date(y,m+1,sd-1);
-  const label=sd===1?`${cap(MONTHS[start.getMonth()])} ${start.getFullYear()}`:`${cap(MONTHS[end.getMonth()])} ${end.getFullYear()}`;
-  const range=sd===1?"":`${start.getDate()} ${MS[start.getMonth()]} – ${end.getDate()} ${MS[end.getMonth()]}`;
-  return {start:iso(start),end:iso(end),startD:start,endD:end,label,range,short:MS[end.getMonth()],days:Math.round((end-start)/864e5)+1};
+  const p=C.period(offset,S.config.startDay);const sd=Math.min(28,Math.max(1,+S.config.startDay||1));const start=p.startD,end=p.endD;
+  p.label=sd===1?`${cap(MONTHS[start.getMonth()])} ${start.getFullYear()}`:`${cap(MONTHS[end.getMonth()])} ${end.getFullYear()}`;
+  p.range=sd===1?"":`${start.getDate()} ${MS[start.getMonth()]} – ${end.getDate()} ${MS[end.getMonth()]}`;
+  p.short=MS[end.getMonth()];
+  return p;
 }
 const inPeriod=p=>allTx().filter(t=>t.date>=p.start&&t.date<=p.end);
-function sums(list){const s={in:0,out:0,save:0,gift:0,other:0};list.forEach(t=>{s[t.type]=(s[t.type]||0)+(+t.amount||0);});s.outflow=s.out+s.save+s.gift+s.other;s.net=s.in-s.outflow;return s;}
-function byCat(list,type){const m={};list.filter(t=>t.type===type).forEach(t=>{m[t.cat]=(m[t.cat]||0)+(+t.amount||0);});return m;}
+const sums=list=>C.sums(list);
+const byCat=(list,type)=>C.byCat(list,type);
 const budgetIds=(type="out")=>Object.keys(S.config.budgets||{}).filter(k=>S.config.budgets[k]>0&&cats(type).some(c=>c.id===k));
 const goalSaved=g=>(+g.initial||0)+allTx().filter(t=>t.type==="save"&&t.goal===g.id).reduce((a,t)=>a+(+t.amount||0),0);
 
@@ -80,17 +80,12 @@ const cloud={on:false};
 
 /* ---------- Récurrences ---------- */
 function applyRecurring(){
-  const p=period(0);const all=allTx();const latest={};
-  all.forEach(t=>{const k=t.recId||(t.rec?t.id:null);if(!k)return;if(!latest[k]||t.date>latest[k].date)latest[k]=t;});
-  const keys=new Set();
-  Object.entries(latest).forEach(([k,t])=>{
-    if(!t.rec||t.date>=p.start)return;
-    const day=+t.date.slice(8);
-    const cand=[p.startD,p.endD].map(d=>{const dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return new Date(d.getFullYear(),d.getMonth(),Math.min(day,dim));}).find(d=>iso(d)>=p.start&&iso(d)<=p.end);
-    if(!cand)return;
-    const tx={...t,id:rid(),recId:k,date:iso(cand),created:Date.now(),auto:true};
-    const m=tx.date.slice(0,7);(S.tx[m]=S.tx[m]||[]).push(tx);keys.add("tx-"+m);
-  });
+  const p=period(0);const keys=new Set();
+  // 1. supprimer les copies mensuelles en double (créées avant cette correction, ou par deux appareils)
+  const dup=new Set(C.duplicateRecurring(allTx()));
+  if(dup.size)Object.keys(S.tx).forEach(m=>{const n=S.tx[m].filter(t=>!dup.has(t.id));if(n.length!==S.tx[m].length){S.tx[m]=n;keys.add("tx-"+m);}});
+  // 2. créer les copies du mois avec un identifiant fixe
+  C.recurringPlan(allTx(),p).forEach(tx=>{const m=tx.date.slice(0,7);(S.tx[m]=S.tx[m]||[]).push(tx);keys.add("tx-"+m);});
   if(keys.size)persist([...keys]);
 }
 
@@ -133,6 +128,26 @@ function txRow(t,showDate){
     </div></div>`;
 }
 const emptyHtml=(icon,title,text,btn)=>`<div class="empty">${ms(icon)}<strong>${title}</strong><p>${text}</p>${btn||""}</div>`;
+/* Bandeaux : adresse à confirmer, sauvegarde à faire */
+function verifyBanner(){
+  const u=session.user;if(!u||u.kind!=="email"||u.verified!==false)return "";
+  return `<div class="banner accent">${ms("mark_email_unread")}<p>Confirme ton adresse <strong>${esc(u.masked)}</strong> : ouvre le lien reçu par e-mail. Sans confirmation, tu ne pourras pas réinitialiser ton mot de passe en cas d'oubli.</p><div class="btn-row"><button class="btn sm" data-act="verify-check" type="button">C'est fait</button><button class="btn sm ghost" data-act="verify-send" type="button">Renvoyer l'e-mail</button></div></div>`;
+}
+const DAY=864e5;
+function backupDue(){
+  const txs=allTx().filter(t=>!t.demo);if(!txs.length)return false;
+  let snooze=0;try{snooze=+localStorage.getItem("azur:backup-snooze:"+session.user.id)||0;}catch(e){}
+  if(Date.now()<snooze)return false;
+  const last=+S.config.lastBackup||0;
+  if(last)return Date.now()-last>30*DAY;
+  const oldest=txs.reduce((a,t)=>Math.min(a,t.created||Date.parse(t.date)||Date.now()),Date.now());
+  return Date.now()-oldest>30*DAY;
+}
+function backupBanner(){
+  if(!backupDue())return "";
+  const last=+S.config.lastBackup||0;const days=last?Math.floor((Date.now()-last)/DAY):0;
+  return `<div class="banner">${ms("backup")}<p>${last?`Ta dernière sauvegarde date de ${days} jours.`:"Tu n'as encore jamais fait de sauvegarde."} Garde une copie de tes chiffres sur une clé USB ou un autre appareil.</p><div class="btn-row"><button class="btn sm" data-act="backup-now" type="button">Sauvegarder</button><button class="btn sm ghost" data-act="backup-later" type="button">Plus tard</button></div></div>`;
+}
 function demoBanner(){
   if(!S.config.demo)return "";
   return `<div class="banner" style="--i:0">${ms("info")}<p>Tu regardes des <strong>données d'exemple</strong>. Efface-les quand tu veux commencer avec tes vrais chiffres.</p><button class="btn sm" data-act="demo-clear" type="button">Effacer les exemples</button></div>`;
@@ -160,7 +175,7 @@ function vHome(){
   if(isNow&&allTx().length){const pd=Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-p.startD)/864e5);const pv=period(-1);
     if(pd<7&&inPeriod(pv).length)reviewBanner=`<div class="banner accent">${ms("summarize")}<p>Ton bilan de <strong>${esc(pv.label.toLowerCase())}</strong> est prêt, avec des plafonds suggérés pour ce mois.</p><button class="btn sm" data-act="review-prev" type="button">Voir le bilan</button></div>`;
     else if(left<=3)reviewBanner=`<div class="banner accent">${ms("summarize")}<p>Le mois se termine dans ${left} jour${left>1?"s":""}. Ton bilan de ${esc(p.label.toLowerCase())} se dessine.</p><button class="btn sm" data-nav="review" type="button">Voir le bilan</button></div>`;}
-  return `${demoBanner()}${reviewBanner}
+  return `${verifyBanner()}${demoBanner()}${backupBanner()}${reviewBanner}
   <div class="home-grid">
    <div class="col">
     <article class="hero" id="hero" ${I()}>
@@ -291,10 +306,10 @@ function vStats(){
   <div class="grid-2">
     <section class="card" style="--i:2"><div class="card-h"><h2>Où part l'argent</h2><span class="small muted">Dépenses</span></div>
       ${tot?`<div class="donut-wrap"><div class="donut"><svg viewBox="0 0 200 200" role="img" aria-label="Répartition des dépenses"><circle cx="100" cy="100" r="74" fill="none" style="stroke:var(--surface-3)" stroke-width="26"/>${segs}</svg><div class="lbl"><div><strong class="num">${short(tot)}</strong><small>${cur().sym} dépensés</small></div></div></div>
-      <div class="legend">${outCats.slice(0,8).map((x,i)=>`<div class="lg" style="--c:${PALETTE[i%PALETTE.length]}"><i></i><span>${esc(x.c.label)}</span><b>${short(x.v)}</b><em>${Math.round(x.v/tot*100)} %</em></div>`).join("")}${outCats.length>8?`<div class="small muted">+ ${outCats.length-8} autres catégories</div>`:""}</div></div>`:emptyHtml("donut_large","Pas encore de dépenses","Les dépenses du mois apparaîtront ici par catégorie.")}
+      <div class="legend">${outCats.slice(0,8).map((x,i)=>`<div class="lg" style="--c:${PALETTE[i%PALETTE.length]}"><i></i><span>${esc(x.c.label)}</span><b>${short(x.v)}</b><em>${Math.round(x.v/tot*100)} %</em></div>`).join("")}${outCats.length>8?`<div class="small muted">+ ${outCats.length-8} autres catégories</div>`:""}</div></div><p class="small muted chart-sum">Plus grosse dépense : <strong style="color:var(--fg)">${esc(outCats[0].c.label)}</strong>, ${fmt(outCats[0].v)} soit ${Math.round(outCats[0].v/tot*100)} % des dépenses du mois.</p>`:emptyHtml("donut_large","Pas encore de dépenses","Les dépenses du mois apparaîtront ici par catégorie.")}
     </section>
     <section class="card" style="--i:3"><div class="card-h"><h2>Sur six mois</h2><div class="legend-inline"><span style="--c:var(--in)"><i></i>Entrées</span><span style="--c:var(--accent)"><i></i>Sorties</span></div></div>
-      <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Entrées et sorties sur six mois">${grid}${bars}</svg></div>
+      <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc("Entrées et sorties sur six mois : "+months.map(m=>`${m.l} entrées ${short(m.in)}, sorties ${short(m.out)}`).join(" ; "))}">${grid}${bars}</svg></div>
     </section>
   </div>
   <section class="card" style="--i:4"><div class="card-h"><h2>Mois par mois</h2><span class="small muted">vs ${esc(pp.label.toLowerCase())}</span></div>
@@ -311,6 +326,7 @@ function vSettings(){
     <div class="set-row"><div><strong>Mot de passe</strong><small>Change-le régulièrement et ne le partage avec personne</small></div><button class="btn" data-act="acc-password" type="button">${ms("password")}Changer</button></div>
     ${session.user.kind==="email"?`<div class="set-row"><div><strong>Mot de passe oublié</strong><small>Reçois sur ta boîte Gmail un lien pour choisir un nouveau mot de passe</small></div><button class="btn" data-act="acc-reset" type="button">${ms("mail")}Recevoir le lien</button></div>`:`<div class="set-row"><div><strong>Récupération du mot de passe</strong><small>Un compte téléphone ne peut pas recevoir d'e-mail de réinitialisation. Garde ton mot de passe en lieu sûr.</small></div></div>`}
     <div class="set-row"><div><strong>Se déconnecter</strong><small>Retour à l'écran de connexion</small></div><button class="btn" data-act="logout" type="button">${ms("logout")}Se déconnecter</button></div>
+    <div class="set-row"><div><strong>Oublier ce compte sur cet appareil</strong><small>Pour un ordinateur ou un téléphone partagé : retire le compte de la liste et efface la copie de tes données gardée ici. Tes données restent en ligne.</small></div><button class="btn" data-act="acc-forget" type="button">${ms("phonelink_erase")}Oublier</button></div>
   </section>
   <section class="card set-sec" style="--i:1"><h2>Synchronisation</h2>
     <div class="status" id="sync-card">${syncCardHtml()}</div>
@@ -320,6 +336,7 @@ function vSettings(){
   <section class="card set-sec" style="--i:2"><h2>Préférences</h2>
     <div class="set-row"><div><strong>Devise</strong><small>Utilisée pour tous les montants</small></div><select class="input" id="set-currency" data-set="currency">${Object.entries(CURRENCIES).map(([k,v])=>`<option value="${k}" ${c.currency===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     <div class="set-row"><div><strong>Début du mois budgétaire</strong><small>Par exemple le jour où tombe ton salaire</small></div><select class="input" id="set-start" data-set="startDay">${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${+c.startDay===i+1?"selected":""}>Le ${i+1}${i===0?"er":""} du mois</option>`).join("")}</select></div>
+    <div class="set-row"><div><strong>Éclaboussures au toucher</strong><small>Petit effet de gouttelettes à chaque clic</small></div><label class="switch" style="--tc:var(--accent)"><span class="sr">Éclaboussures au toucher</span><input type="checkbox" id="set-splash" data-cfg="splash" ${c.splash!==false?"checked":""}><span class="tr"></span></label></div>
     <div class="set-row"><div><strong>Apparence</strong><small>Le mode sombre est la signature d'Azur</small></div><div class="seg-ctl" role="group" aria-label="Apparence">${[["system","Auto"],["dark","Sombre"],["light","Clair"]].map(([k,l])=>`<button type="button" data-act="theme" data-theme-val="${k}" aria-pressed="${c.theme===k}">${l}</button>`).join("")}</div></div>
   </section>
   <section class="card set-sec" style="--i:3"><div class="card-h" style="margin:0"><h2>Catégories</h2><button class="btn sm" data-act="cat-new" type="button">${ms("add")}Ajouter</button></div>
@@ -536,20 +553,20 @@ function openCatEdit(type,id){
 
 /* Répartition d'une entrée (dîme + budgets) */
 function splitLines(entry,auto){
-  const L=inPeriod(period(0)).filter(t=>t.id!==entry.id);const tc=S.config.tithe||{on:true,rate:10};const rate=+tc.rate||10;
-  const lines=[];let left=entry.amount;
-  if(tc.on!==false){const c=cats("gift").find(x=>x.id==="dime");if(c){const a=Math.round(entry.amount*rate/100);lines.push({type:"gift",cat:"dime",label:c.label,icon:c.icon,amount:a,why:`${rate} % de ${fmt(entry.amount)}`});left-=a;}}
-  if(!auto||S.config.split!==false){
-    ["gift","save"].forEach(type=>{const sp=byCat(L,type);budgetIds(type).forEach(id=>{if(id==="dime"&&tc.on!==false)return;const c=cats(type).find(x=>x.id===id);const rem=S.config.budgets[id]-(sp[id]||0);if(rem<=0||left<=0)return;const a=Math.min(rem,left);left-=a;lines.push({type,cat:id,label:c.label,icon:c.icon,amount:a,why:`Reste ${fmt(rem)} à verser ce mois`});});});
-  }
+  const budgets=[];["gift","save"].forEach(type=>budgetIds(type).forEach(id=>budgets.push({type,cat:id,amount:S.config.budgets[id]})));
+  const r=C.splitPlan({entry,all:allTx(),p:period(0),tithe:S.config.tithe,splitOn:auto?S.config.split:true,budgets});
+  const lines=r.lines.map(l=>{const c=cats(l.type).find(x=>x.id===l.cat)||{label:l.cat,icon:"label"};
+    const why=l.kind==="dime"?(r.alreadyTotal?`${l.rate} % de ${fmt(entry.amount)}, moins ce qui est déjà versé`:`${l.rate} % de ${fmt(entry.amount)}`):`Reste ${fmt(l.remaining)} à verser ce mois`;
+    return {...l,label:c.label,icon:c.icon,why};});
+  lines.already=r.alreadyTotal;lines.alreadyCount=r.alreadyCount;
   return lines;
 }
 function openSplit(entryId,auto){
   const e=findTx(entryId);if(!e)return;const lines=splitLines(e,auto);
-  if(!lines.length){if(!auto)toast("Rien à répartir : active la dîme ou fixe des montants pour tes semences et épargnes.");return;}
+  if(!lines.length){if(!auto)toast(lines.alreadyCount?"Cette entrée a déjà été répartie : il ne reste rien à verser.":"Rien à répartir : active la dîme ou fixe des montants pour tes semences et épargnes.");return;}
   const sh=openSheet(`<div class="grab"></div>
     <div class="sheet-h"><h2>Répartir cette entrée</h2><button class="icon-btn" type="button" data-act="close" aria-label="Fermer">${ms("close")}</button></div>
-    <p class="muted">${esc(catOf(e).label)} de <strong style="color:var(--fg)">${fmt(e.amount)}</strong>. Voici ce que je propose d'enregistrer tout de suite, selon ta dîme et tes budgets. Ajuste les montants si besoin.</p>
+    <p class="muted">${esc(catOf(e).label)} de <strong style="color:var(--fg)">${fmt(e.amount)}</strong>. Voici ce que je propose d'enregistrer tout de suite, selon ta dîme et tes budgets. Ajuste les montants si besoin.</p>${lines.already?`<div class="notice">${ms("info")}<span>Déjà réparti pour cette entrée : ${fmt(lines.already)}. Les montants ci-dessous en tiennent compte.</span></div>`:""}
     <div>${lines.map((l,i)=>`<div class="split-row" id="spr-${i}"><input type="checkbox" class="ck" id="sp-ck-${i}" data-split="${i}" checked aria-label="Inclure ${esc(l.label)}"><span class="ic" style="--c:${TYPES[l.type].color}">${ms(l.icon)}</span><label for="sp-ck-${i}" style="min-width:0;cursor:pointer"><strong>${esc(l.label)}</strong><small>${l.why}</small></label><input class="input b-input" id="sp-amt-${i}" data-split-amt="${i}" inputmode="numeric" value="${num(l.amount)}" aria-label="Montant ${esc(l.label)}"></div>`).join("")}</div>
     <div class="split-sum"><span>Réparti</span><b id="sp-total"></b><span>Reste disponible sur l'entrée</span><b id="sp-left"></b></div>
     <p class="err" id="e-split"></p>
@@ -573,7 +590,7 @@ function confirmSplit(){
 }
 
 /* Bilan de fin de mois */
-function niceUp(v){if(cur().dec)return Math.ceil(v/10)*10;return v<5000?Math.ceil(v/500)*500:Math.ceil(v/1000)*1000;}
+const niceUp=v=>C.niceUp(v,cur().dec);
 function vReview(){
   const p=period(),L=inPeriod(p),s=sums(L),pp=period(ui.offset-1),PL=inPeriod(pp),prev=sums(PL);
   const spent=byCat(L,"out"),pspent=byCat(PL,"out");const good=[],watch=[];
@@ -644,6 +661,7 @@ function clearDemo(){
 async function offerFile(filename,data,label){
   const r=await window.azur.file.save(filename,data);
   if(r.ok&&r.data.saved)toast(`${label} enregistré`);else if(!r.ok)toast("Enregistrement impossible : "+r.error.message);
+  return !!(r.ok&&r.data.saved);
 }
 function exportCsv(){
   const rows=[["Date","Type","Catégorie","Montant","Devise","Mode de paiement","Note","Objectif"]];
@@ -651,7 +669,10 @@ function exportCsv(){
   const csv="﻿"+rows.map(r=>r.map(v=>/[;"\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(";")).join("\r\n");
   offerFile(`azur-operations-${todayISO()}.csv`,csv,"Export");
 }
-function exportJson(){offerFile(`azur-sauvegarde-${todayISO()}.json`,JSON.stringify({app:"azur",version:1,saved:new Date().toISOString(),config:S.config,tx:S.tx},null,1),"Sauvegarde");}
+async function exportJson(){
+  const ok=await offerFile(`azur-sauvegarde-${todayISO()}.json`,JSON.stringify({app:"azur",version:1,saved:new Date().toISOString(),config:S.config,tx:S.tx},null,1),"Sauvegarde");
+  if(ok){S.config.lastBackup=Date.now();persist(["config"]);render(true);}
+}
 function importJson(file){
   const r=new FileReader();
   r.onload=()=>{
@@ -703,6 +724,11 @@ document.addEventListener("click",e=>{
     case "logout":logout();break;
     case "acc-rename":openAccount("rename");break;
     case "acc-password":openAccount("password");break;
+    case "verify-send":(async()=>{const r=await window.azur.account.sendVerification();toast(r.ok?`E-mail envoyé à ${r.data}. Pense aux courriers indésirables.`:r.error.message);})();break;
+    case "verify-check":(async()=>{const r=await window.azur.account.verification();if(r.ok&&r.data.verified){session.user={...session.user,verified:true};render(true);toast("Adresse confirmée, merci.");}else toast(r.ok?"Pas encore confirmée. Ouvre le lien reçu par e-mail, puis réessaie.":r.error.message);})();break;
+    case "backup-now":exportJson();break;
+    case "backup-later":try{localStorage.setItem("azur:backup-snooze:"+session.user.id,String(Date.now()+7*DAY));}catch(e){}render(true);break;
+    case "acc-forget":confirmBox("Oublier ce compte sur cet appareil ?","Le compte disparaîtra de la liste de cet appareil et la copie locale de tes données sera effacée. Tes données restent en ligne : tu les retrouveras en te reconnectant, avec Internet.","Oublier",async()=>{const r=await window.azur.account.forgetDevice();if(!r.ok){toast(r.error.message);return;}window.AzurApp.stop();location.reload();});break;
     case "acc-reset":(async()=>{const r=await window.azur.account.sendReset();toast(r.ok?`Lien envoyé à ${r.data}. Vérifie aussi les courriers indésirables.`:r.error.message);})();break;
     case "legacy-open":openLegacy();break;
     case "upd-check":window.azurNative.updates.check().then(r=>{if(r.ok){upd.status=r.data;renderUpd();if(r.data.state==="uptodate")toast("Azur est à jour.");}});upd.status={...(upd.status||{}),state:"checking"};renderUpd();break;
@@ -753,7 +779,7 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.dataset.split!==undefined){splitRecalc();return;}
-  if(t.dataset.cfg){const k=t.dataset.cfg;S.config.tithe=S.config.tithe||{on:true,rate:10};if(k==="tithe")S.config.tithe.on=t.checked;else if(k==="rate")S.config.tithe.rate=+t.value;else if(k==="split")S.config.split=t.checked;persist(["config"]);toast("Préférence enregistrée");return;}
+  if(t.dataset.cfg){const k=t.dataset.cfg;S.config.tithe=S.config.tithe||{on:true,rate:10};if(k==="tithe")S.config.tithe.on=t.checked;else if(k==="rate")S.config.tithe.rate=+t.value;else if(k==="split")S.config.split=t.checked;else if(k==="splash")S.config.splash=t.checked;persist(["config"]);toast("Préférence enregistrée");return;}
   if(t.dataset.budget){const v=parseAmt(t.value);if(v>0)S.config.budgets[t.dataset.budget]=v;else delete S.config.budgets[t.dataset.budget];if(S.config.demoBudgetKeys)S.config.demoBudgetKeys=S.config.demoBudgetKeys.filter(k=>k!==t.dataset.budget);persist(["config"]);render(true);return;}
   if(t.dataset.set){S.config[t.dataset.set]=t.dataset.set==="startDay"?+t.value:t.value;persist(["config"]);ui.offset=0;render(true);toast("Préférence enregistrée");return;}
   if(t.id==="import-file"&&t.files&&t.files[0]){importJson(t.files[0]);t.value="";}
@@ -781,7 +807,7 @@ document.addEventListener("pointermove",e=>{const h=e.target.closest&&e.target.c
 /* Éclaboussures à chaque clic */
 const SPLASH=["#4FA3E8","#7CC4F5","#B5DEFA","#2E6FD8","#818CF8"];
 document.addEventListener("pointerdown",e=>{
-  if(reduced||e.button>0)return;
+  if(reduced||e.button>0||S.config.splash===false)return;
   const x=e.clientX,y=e.clientY;
   const host=e.target.closest&&e.target.closest("[style*='--c'],[style*='--tc'],.sheet");
   let tint="";if(host){const cs=getComputedStyle(host);tint=(cs.getPropertyValue("--c")||cs.getPropertyValue("--tc")).trim();}
@@ -939,4 +965,11 @@ window.AzurApp={
 };
 window.azur.app.info().then(r=>{if(r.ok)ui.version=r.data.ui&&r.data.ui!==r.data.version?r.data.version+" (interface "+r.data.ui+")":r.data.version;});
 window.azur.auth.onLocked(()=>{if(session.user)lockApp();});
+
+/* Version web : mise en cache pour l'ouvrir sans Internet (sans effet dans le logiciel) */
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){
+  const hadController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).catch(()=>{});
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(hadController)toast("Une nouvelle version d'Azur est prête.","Recharger",()=>location.reload());});
+}
 })();

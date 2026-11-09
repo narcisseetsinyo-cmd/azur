@@ -1,11 +1,11 @@
 {
- "version": "1.2.1",
+ "version": "1.3.0",
  "minShell": "1.2.0",
- "date": "2026-11-05T09:46:14.552Z",
+ "date": "2026-11-09T09:48:43.603Z",
  "files": [
   {
    "path": "app.js",
-   "sha256": "c8893ff8b459e79e5a2494fb91b810cae19df9060110875a97d88b52ad2ce85e"
+   "sha256": "c39d988c7dcdd746e7460ae4152236dd0925e784fc3eec8e16655c1422288f16"
   },
   {
    "path": "assets/logo.png",
@@ -28,12 +28,16 @@
    "sha256": "cc93225a43ae87d8a09fe9a1ded8630bc7829d1dd2ca787c907300808fd4d6a7"
   },
   {
+   "path": "calc.js",
+   "sha256": "3eb4c94e688a2267f9db488e67c36721c91c5551810a55b7621e5f9cfd0ffbbc"
+  },
+  {
    "path": "cloud.js",
-   "sha256": "85e4cbb5ce3ef8cd6295846d64a215457a675e9cc47994ac675e4651e6b02944"
+   "sha256": "b1a44f7190fc349827ca580b1c08beadbbbfaa72717a2ccec9d09d16682afa7a"
   },
   {
    "path": "firebase-config.js",
-   "sha256": "7ec5bd576b0d35e27185632fef14f66ed73aa7623f09d681761f36ec75818387"
+   "sha256": "16c4d6305c06eee6568ff7f9808ea05d38b0bcbe614c9116c9044138c7a39f96"
   },
   {
    "path": "fonts/ClashDisplay-LICENSE.txt",
@@ -61,7 +65,7 @@
   },
   {
    "path": "index.html",
-   "sha256": "7c29da6c5b6c0f17885491ecade66ae282927bb3fae39f53d7a3b8a498dad532"
+   "sha256": "720f14d34906b6385bdfe83664028eee340aea04f0c97215da18668771991b7c"
   },
   {
    "path": "manifest.webmanifest",
@@ -69,11 +73,15 @@
   },
   {
    "path": "responsive.css",
-   "sha256": "7829c3361eb26d8d86132f8188c50ec0d8c0e85700fdcb333ee1891675b018b3"
+   "sha256": "51af294057b429ed3671e3843ab2523dcb0e2d737f75e8fa4b02dafc30719211"
   },
   {
    "path": "styles.css",
-   "sha256": "fc91dd0a5fa0aa6fc1029d928fe83b09d8a664150898bef9c1fdd4036d66762d"
+   "sha256": "c298c47c9e7967f13133fd7492053b4e2ff5986f41a049c3d9fd302a550c18c5"
+  },
+  {
+   "path": "sw.js",
+   "sha256": "a4e8153220dc5fc4f6e77029c36034960f3362d52619c1e65a9c1dd3de170259"
   }
  ]
 }

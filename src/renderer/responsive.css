@@ -64,7 +64,7 @@
 }
 @media (max-width:374px){
   .tabbar{grid-template-columns:1fr 1fr 64px 1fr 1fr;padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
-  .tab{font-size:10px}
+  .tab{font-size:11px;letter-spacing:-.01em}
   .fab{width:54px;height:54px;border-radius:18px}
   .b-row{grid-template-columns:auto minmax(0,1fr) 86px;gap:9px}
   .b-row .ic{width:34px;height:34px;border-radius:11px}

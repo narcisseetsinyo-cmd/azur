@@ -84,6 +84,28 @@ try {
   await click(A.p, "[data-nav=budgets]");
   check("Le plafond fixé sur B apparaît sur A", await until(async () => (await A.p.inputValue("#b-alim")).replace(/\s/g, "") === "70000"));
 
+  // Réglages modifiés sur deux appareils en même temps (A hors ligne) : les deux sont gardés
+  await A.ctx.setOffline(true); await A.p.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await A.p.fill("#b-transport", "30 000"); await A.p.press("#b-transport", "Tab"); await A.p.waitForTimeout(300);
+  await B.p.fill("#b-loisirs", "20 000"); await B.p.press("#b-loisirs", "Tab"); await B.p.waitForTimeout(1500);
+  await A.ctx.setOffline(false); await A.p.evaluate(() => window.dispatchEvent(new Event("online")));
+  const both = async P => (await P.inputValue("#b-transport")).replace(/\s/g, "") === "30000" && (await P.inputValue("#b-loisirs")).replace(/\s/g, "") === "20000" && (await P.inputValue("#b-alim")).replace(/\s/g, "") === "70000";
+  check("Deux plafonds changés sur deux appareils sont tous les deux gardés", await until(async () => (await both(A.p)) && (await both(B.p)), 30000));
+
+  // Une suppression l'emporte sur une modification faite hors ligne
+  await click(A.p, "[data-nav=ops]"); await click(B.p, "[data-nav=ops]"); await A.p.waitForTimeout(400);
+  const target = await B.p.evaluate(() => { const r = [...document.querySelectorAll(".tx-row")].find(x => x.textContent.includes("Hédzranawoé")); return r && r.dataset.id; });
+  await A.ctx.setOffline(true); await A.p.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await A.p.evaluate(id => document.querySelector(`.tx-main[data-id="${id}"]`).click(), target); await A.p.waitForTimeout(400);
+  await A.p.fill("#f-note", "Marché modifié hors ligne"); await click(A.p, "[data-act=tx-save]"); await A.p.waitForTimeout(500);
+  await B.p.evaluate(id => document.querySelector(`.tx-del[data-id="${id}"]`).click(), target); await B.p.waitForTimeout(1500);
+  await A.ctx.setOffline(false); await A.p.evaluate(() => window.dispatchEvent(new Event("online")));
+  check("Une opération supprimée ne revient pas après une modification hors ligne", await until(async () => !(await notes(A.p)).includes("modifié hors ligne") && !(await notes(B.p)).includes("modifié hors ligne"), 30000), (await notes(B.p)).slice(0, 80));
+
+  // Opération mensuelle : un seul exemplaire même si deux appareils la créent
+  const cnt = await A.p.evaluate(() => window.__azurTest.count()); const cntB = await B.p.evaluate(() => window.__azurTest.count());
+  check("Les deux appareils voient le même nombre d'opérations", cnt === cntB, cnt + " / " + cntB);
+
   // Connexion hors ligne avec un compte déjà utilisé sur l'appareil
   await click(A.p, ".rail [data-act=logout]"); await A.p.waitForTimeout(400);
   await A.ctx.setOffline(true); await A.p.evaluate(() => window.dispatchEvent(new Event("offline")));

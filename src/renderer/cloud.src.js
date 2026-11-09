@@ -7,11 +7,13 @@ import { initializeApp } from "firebase/app";
 import {
   initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, connectAuthEmulator,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail,
-  reauthenticateWithCredential, EmailAuthProvider, updatePassword, deleteUser
+  reauthenticateWithCredential, EmailAuthProvider, updatePassword, deleteUser,
+  sendEmailVerification, signOut, reload
 } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
-  doc, collection, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs, getDoc, serverTimestamp
+  doc, collection, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs, getDoc, serverTimestamp,
+  terminate, clearIndexedDbPersistence, updateDoc, deleteField, FieldPath
 } from "firebase/firestore";
 
 const native = window.azurNative || null; // présent seulement dans le logiciel Windows / Mac
@@ -98,7 +100,32 @@ const authReady = auth ? auth.authStateReady() : Promise.resolve();
 
 /* ---------- Session et données ---------- */
 let session = null;                 // { uid, kind, identifier, displayName, masked }
-let txMap = new Map(), cfg = null, unsubs = [];
+let txMap = new Map(), cfg = null, cfgFine = false, unsubs = [];
+
+/* ---------- Réglages synchronisés champ par champ ----------
+   Les plafonds, objectifs et catégories sont des champs séparés du document : deux appareils qui changent
+   deux réglages différents, même hors ligne, gardent les deux changements. */
+const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+const byIdMap = arr => Object.fromEntries((arr || []).filter(x => x && x.id).map((x, i) => [String(x.id), { ...x, _o: i }]));
+const fromIdMap = m => Object.values(m || {}).sort((a, b) => (a._o || 0) - (b._o || 0)).map(({ _o, ...x }) => x);
+function toStored(c) {
+  const o = clean(c || {});
+  if (Array.isArray(o.goals)) o.goals = byIdMap(o.goals);
+  if (isObj(o.customCats)) Object.keys(o.customCats).forEach(k => { if (Array.isArray(o.customCats[k])) o.customCats[k] = byIdMap(o.customCats[k]); });
+  return o;
+}
+function fromStored(o) {
+  const c = clean(o || {});
+  if (isObj(c.goals)) c.goals = fromIdMap(c.goals);
+  if (isObj(c.customCats)) Object.keys(c.customCats).forEach(k => { if (isObj(c.customCats[k])) c.customCats[k] = fromIdMap(c.customCats[k]); });
+  return c;
+}
+function leaves(o, path = [], out = new Map()) {
+  const whole = (path[0] === "goals" && path.length === 2) || (path[0] === "customCats" && path.length === 3);
+  if (!whole && isObj(o) && Object.keys(o).length) { Object.entries(o).forEach(([k, v]) => leaves(v, [...path, k], out)); return out; }
+  if (path.length) out.set(JSON.stringify(path), o);
+  return out;
+}
 let remoteCbs = [], statusCbs = [], lastEmit = "", status = { state: "offline", pending: false };
 const online = () => navigator.onLine !== false;
 function stateNow() {
@@ -136,25 +163,34 @@ function startData(uid) {
     gotTx = true; check(); setStatus(); if (gotTx && gotCfg) emit();
   }, () => { gotTx = true; check(); }));
   unsubs.push(onSnapshot(doc(db, "users", uid, "meta", "config"), { includeMetadataChanges: true }, snap => {
-    cfg = snap.exists() ? (snap.data().d || null) : null;
+    const data = snap.exists() ? snap.data() : null;
+    cfgFine = !!(data && data.c);
+    cfg = data ? (data.c ? fromStored(data.c) : (data.d || null)) : null;
     meta.cfg = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites };
     gotCfg = true; check(); setStatus(); if (gotTx && gotCfg) emit();
   }, () => { gotCfg = true; check(); }));
   return Promise.race([ready, new Promise(r => setTimeout(r, 8000))]);
 }
 async function commit(ops) {
-  for (let i = 0; i < ops.length; i += 400) {
+  // Créations et suppressions : par lots. Modifications : une à une, et seulement si l'opération existe
+  // encore en ligne — une suppression faite sur un autre appareil l'emporte sur une modification hors ligne.
+  const batched = ops.filter(o => o[0] !== "upd");
+  for (let i = 0; i < batched.length; i += 400) {
     const b = writeBatch(db);
-    ops.slice(i, i + 400).forEach(([kind, ref, data]) => (kind === "set" ? b.set(ref, data) : b.delete(ref)));
+    batched.slice(i, i + 400).forEach(([kind, ref, data]) => (kind === "set" ? b.set(ref, data) : b.delete(ref)));
     b.commit().catch(e => console.warn("Azur : écriture refusée", e && e.code));
   }
+  ops.filter(o => o[0] === "upd").forEach(([, ref, data]) => updateDoc(ref, data).catch(e => {
+    if (e && e.code === "not-found") txMap.delete(ref.id);
+    else console.warn("Azur : modification refusée", e && e.code);
+  }));
 }
 const need = () => { if (!session || !db) throw { code: "unauthenticated", message: "Connecte-toi d'abord." }; return session.uid; };
 const wrap = fn => async (...a) => { try { return ok(await fn(...a)); } catch (e) { return e && e.code && !String(e.code).includes("/") ? fail(e.code, e.message, e) : fbError(e); } };
 
 async function openSession(user, kind, ident, displayName) {
   session = { uid: user.uid, kind, identifier: ident, displayName, masked: mask(kind, ident) };
-  return publicAccount({ uid: user.uid, kind, displayName, masked: session.masked, lastLogin: Date.now() });
+  return { ...publicAccount({ uid: user.uid, kind, displayName, masked: session.masked, lastLogin: Date.now() }), verified: kind === "email" ? !!user.emailVerified : null };
 }
 
 window.azur = {
@@ -174,6 +210,7 @@ window.azur = {
         await updateProfile(cred.user, { displayName: name });
         setDoc(doc(db, "users", cred.user.uid), { displayName: name, kind, identifier: ident, createdAt: serverTimestamp() }).catch(() => {});
         await remember(cred.user, kind, ident, name, p.password);
+        if (kind === "email") { auth.languageCode = "fr"; sendEmailVerification(cred.user).catch(() => {}); }
         return ok({ user: await openSession(cred.user, kind, ident, name) });
       } catch (e) { return e && e.code && !String(e.code).includes("/") ? fail(e.code, e.message) : fbError(e, p && p.kind); }
     },
@@ -230,6 +267,30 @@ window.azur = {
       await remember(u, session.kind, session.identifier, session.displayName, newPw);
       return true;
     }),
+    verification: wrap(async () => {
+      need();
+      if (session.kind !== "email") return { verified: null };
+      if (online()) { try { await reload(auth.currentUser); } catch (e) { /* hors ligne */ } }
+      return { verified: !!auth.currentUser.emailVerified, email: session.identifier };
+    }),
+    sendVerification: wrap(async () => {
+      need();
+      if (session.kind !== "email") throw { code: "phone", message: "Disponible seulement pour les comptes Gmail." };
+      if (!online()) throw { code: "offline", message: "Une connexion Internet est nécessaire." };
+      auth.languageCode = "fr";
+      try { await sendEmailVerification(auth.currentUser); } catch (e) { if (/too-many-requests/.test(e.code || "")) throw { code: "locked", message: "Un e-mail vient déjà d'être envoyé. Attends quelques minutes avant de recommencer." }; throw e; }
+      return session.identifier;
+    }),
+    forgetDevice: wrap(async () => {
+      const uid = need();
+      stopData();
+      writeAccounts(readAccounts().filter(a => a.uid !== uid));
+      try { Object.keys(localStorage).filter(k => k.startsWith("azur:") && k.includes(uid)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* stockage indisponible */ }
+      session = null;
+      try { await signOut(auth); } catch (e) { /* déjà déconnecté */ }
+      try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { /* le cache sera vidé au prochain lancement */ }
+      return true;
+    }),
     sendReset: wrap(async () => {
       need();
       if (session.kind !== "email") throw { code: "phone_reset", message: "Disponible seulement pour les comptes Gmail." };
@@ -261,13 +322,33 @@ window.azur = {
   },
   data: {
     load: wrap(async () => { const uid = need(); await startData(uid); setStatus(); const s = stateNow(); lastEmit = JSON.stringify(s); return s; }),
-    saveConfig: wrap(async c => { const uid = need(); cfg = clean(c); commit([["set", doc(db, "users", uid, "meta", "config"), { d: cfg, u: serverTimestamp() }]]); return true; }),
+    saveConfig: wrap(async c => {
+      const uid = need(); const ref = doc(db, "users", uid, "meta", "config");
+      const next = clean(c), prev = cfg;
+      cfg = next;
+      if (!cfgFine) { cfgFine = true; setDoc(ref, { c: toStored(next), d: deleteField(), u: serverTimestamp() }, { merge: true }).catch(e => console.warn("Azur : réglages refusés", e && e.code)); return true; }
+      const a = leaves(toStored(prev || {})), b = leaves(toStored(next));
+      let ch = [];
+      b.forEach((v, k) => { if (!a.has(k) || JSON.stringify(a.get(k)) !== JSON.stringify(v)) ch.push({ p: JSON.parse(k), v, del: false }); });
+      a.forEach((v, k) => { if (!b.has(k)) ch.push({ p: JSON.parse(k), v: null, del: true }); });
+      // Un même champ ne peut pas être écrit en même temps que l'un de ses sous-champs
+      const pre = (x, y) => x.length < y.length && x.every((s2, i) => s2 === y[i]);
+      ch = ch.filter(x => !ch.some(y => (pre(y.p, x.p) && !y.del) || (pre(x.p, y.p) && x.del)));
+      const args = [];
+      ch.forEach(x => args.push(new FieldPath("c", ...x.p), x.del ? deleteField() : x.v));
+      if (args.length) updateDoc(ref, ...args, "u", serverTimestamp()).catch(e => {
+        // document absent (compte neuf) : on écrit tout
+        if (e && e.code === "not-found") setDoc(ref, { c: toStored(cfg), u: serverTimestamp() }, { merge: true }).catch(() => {});
+        else console.warn("Azur : réglages refusés", e && e.code);
+      });
+      return true;
+    }),
     replaceMonth: wrap(async (month, items) => {
       const uid = need(); const ops = []; const keep = new Set();
       (items || []).forEach(t => {
         if (!t || !t.id || !t.date) return; keep.add(t.id);
         const c = clean(t); const prev = txMap.get(t.id);
-        if (!prev || JSON.stringify(prev) !== JSON.stringify(c)) { txMap.set(t.id, c); ops.push(["set", doc(db, "users", uid, "tx", String(t.id)), { d: c, m: String(t.date).slice(0, 7), u: serverTimestamp() }]); }
+        if (!prev || JSON.stringify(prev) !== JSON.stringify(c)) { txMap.set(t.id, c); ops.push([prev ? "upd" : "set", doc(db, "users", uid, "tx", String(t.id)), { d: c, m: String(t.date).slice(0, 7), u: serverTimestamp() }]); }
       });
       [...txMap.entries()].forEach(([id, t]) => { if (String(t.date || "").slice(0, 7) === month && !keep.has(id)) { txMap.delete(id); ops.push(["del", doc(db, "users", uid, "tx", id)]); } });
       if (ops.length) commit(ops);
@@ -279,7 +360,7 @@ window.azur = {
       [...txMap.keys()].forEach(id => { if (!next.has(id)) ops.push(["del", doc(db, "users", uid, "tx", id)]); });
       next.forEach((t, id) => ops.push(["set", doc(db, "users", uid, "tx", id), { d: t, m: t.date.slice(0, 7), u: serverTimestamp() }]));
       txMap = next;
-      if (s && s.config) { cfg = clean(s.config); ops.push(["set", doc(db, "users", uid, "meta", "config"), { d: cfg, u: serverTimestamp() }]); }
+      if (s && s.config) { cfg = clean(s.config); cfgFine = true; ops.push(["set", doc(db, "users", uid, "meta", "config"), { c: toStored(cfg), u: serverTimestamp() }]); }
       commit(ops);
       return true;
     }),

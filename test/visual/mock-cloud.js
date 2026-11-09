@@ -9,14 +9,14 @@
     auth: {
       list: () => ok(accounts.map(pub)),
       session: () => ok(null),
-      register: p => { const ident = p.kind === "phone" ? "+228" + String(p.identifier).replace(/\D/g, "").slice(-8) : String(p.identifier).toLowerCase(); const a = { uid: "u" + (accounts.length + 1), kind: p.kind, identifier: ident, displayName: p.displayName, masked: mask(p.kind, ident) }; accounts.push(a); session = a; return ok({ user: pub(a) }); },
+      register: p => { const ident = p.kind === "phone" ? "+228" + String(p.identifier).replace(/\D/g, "").slice(-8) : String(p.identifier).toLowerCase(); const a = { uid: "u" + (accounts.length + 1), kind: p.kind, identifier: ident, displayName: p.displayName, masked: mask(p.kind, ident) }; accounts.push(a); session = a; return ok({ user: { ...pub(a), verified: a.kind === "email" ? false : null } }); },
       login: p => { const a = p.id ? accounts.find(x => x.uid === p.id) : accounts[0]; if (!a) return Promise.resolve({ ok: false, error: { code: "bad_credentials", message: "Adresse ou mot de passe incorrect." } }); session = a; return ok(pub(a)); },
       reset: p => ok({ sent: true, email: p.identifier }),
       logout: () => { session = null; return ok(true); },
       forget: () => ok(true),
       onLocked: () => {}
     },
-    account: { changePassword: () => ok(true), sendReset: () => ok("test@gmail.com"), rename: n => ok({ ...pub(session), displayName: n }), remove: () => ok(true) },
+    account: { changePassword: () => ok(true), sendReset: () => ok("test@gmail.com"), rename: n => ok({ ...pub(session), displayName: n }), remove: () => ok(true), verification: () => ok({ verified: true }), sendVerification: () => ok("test@gmail.com"), forgetDevice: () => ok(true) },
     data: {
       load: () => ok(JSON.parse(JSON.stringify(state))),
       saveConfig: c => { state.config = JSON.parse(JSON.stringify(c)); return ok(true); },
