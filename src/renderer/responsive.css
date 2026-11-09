@@ -118,3 +118,6 @@
 
 /* La devise des petites cartes passe toujours sous le montant */
 .mini-cur{display:block;margin:2px 0 0}
+
+/* Montants du bilan : jamais coupés au milieu */
+@media (max-width:599px){ .review-sum .kpi strong{white-space:nowrap;font-size:clamp(14px,4.6vw,22px)} }
