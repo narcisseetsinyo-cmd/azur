@@ -1,5 +1,6 @@
 /* Faux module cloud pour les tests visuels : même interface que cloud.js, tout en mémoire, sans Firebase. */
 (() => {
+  window.AZUR_GATE = false; // pas de code d'accès dans les tests
   const ok = data => Promise.resolve({ ok: true, data });
   let accounts = [], session = null, state = { config: null, tx: {} }, remote = [], statusCbs = [];
   const mask = (k, id) => (k === "email" ? id.slice(0, 2) + "•••••@" + id.split("@")[1] : id.slice(0, 4) + " •• •• " + id.slice(-4, -2) + " " + id.slice(-2));

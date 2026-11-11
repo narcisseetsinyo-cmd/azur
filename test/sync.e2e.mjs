@@ -6,7 +6,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const R = path.resolve("src/renderer");
-const CFG = `window.AZUR_FIREBASE={apiKey:"demo-key",authDomain:"demo-azur.firebaseapp.com",projectId:"demo-azur",appId:"1:1:web:1"};window.AZUR_VERSION="test";`;
+const CFG = `window.AZUR_FIREBASE={apiKey:"demo-key",authDomain:"demo-azur.firebaseapp.com",projectId:"demo-azur",appId:"1:1:web:1"};window.AZUR_VERSION="test";window.AZUR_GATE=false;`;
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split("?")[0]);

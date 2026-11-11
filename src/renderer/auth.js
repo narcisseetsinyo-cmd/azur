@@ -60,6 +60,8 @@
         ${err}<button class="btn primary lg block" type="submit">${ms("mail")}Recevoir le lien par e-mail</button></form>
       <div class="notice">${ms("smartphone")}<span>Les comptes créés avec un numéro de téléphone ne peuvent pas recevoir de lien. Si tu as oublié ce mot de passe, crée un nouveau compte avec ton adresse Gmail.</span></div>
       <p class="auth-switch"><button class="link" type="button" data-a="go" data-v="${st.accounts.length ? "pick" : "login"}">Retour à la connexion</button></p>`,
+    gate: () => `${logo}${notice()}<div><h2>Code d'accès</h2><p class="lead">La version web d'Azur est réservée. Saisis le code d'accès pour continuer vers la connexion.</p></div>
+      <form class="auth-form" data-f="gate" novalidate>${pwField("x-gate", "Code d'accès", "off")}${err}<button class="btn primary lg block" type="submit">${ms("key")}Continuer</button></form>`,
     setup: () => `${logo}<div><h2>Azur n'est pas encore relié</h2><p class="lead">Cette version attend la configuration Firebase du projet. Ajoute-la dans <code>src/renderer/firebase-config.js</code>, puis relance l'application.</p></div>`,
     code: () => `${logo}<div class="notice ok">${ms("check_circle")}<span>${esc(st.codeTitle)}</span></div>
       <div><h2>Ton code de secours</h2><p class="lead">Si tu oublies ton mot de passe, ce code te permettra d'en choisir un nouveau. Note-le sur papier et garde-le en lieu sûr : il ne sera plus affiché.</p></div>
@@ -150,6 +152,18 @@
     e.preventDefault();
     const form = e.target, f = form.dataset.f;
     setErr("");
+    if (f === "gate") {
+      const code = $("#x-gate").value;
+      if (Date.now() < gateUntil) return setErr(`Trop d'essais. Réessaie dans ${Math.ceil((gateUntil - Date.now()) / 1000)} s.`);
+      if (!code) return setErr("Saisis le code d'accès.");
+      busy(form, true, "Vérification…");
+      const r = await gateCheck(code).catch(() => "bad");
+      busy(form, false);
+      if (r === "offline") return setErr("Impossible de vérifier le code : vérifie ta connexion Internet.");
+      if (r !== "ok") { gateFails++; if (gateFails >= 5) { gateFails = 0; gateUntil = Date.now() + 30000; } $("#x-gate").select(); return setErr("Code d'accès incorrect."); }
+      gateFails = 0; gateOpen = true; const next = afterGate; afterGate = null; st.msg = ""; next && next();
+      return;
+    }
     if (f === "login") {
       const password = $("#x-pw").value;
       const payload = st.picked ? { id: st.picked.id, password } : { kind: st.kind, identifier: identifier(), password };
@@ -201,13 +215,42 @@
     st.view = st.accounts.length ? "pick" : "register";
     root.hidden = false; render();
   }
-  window.AzurAuth = { show };
+  /* ---------- Code d'accès de la version web (demandé avant chaque connexion) ----------
+     Le code n'est écrit nulle part : il est vérifié en déchiffrant un témoin publié avec les installateurs
+     (même mot de passe que la page de téléchargement). */
+  const WEB = !window.azurNative && window.AZUR_GATE !== false;
+  let gateOpen = false, gateMsg = "", gateFails = 0, gateUntil = 0;
+  async function gateData() {
+    try {
+      const r = await fetch("telecharger/files/manifest.json", { cache: "no-store" });
+      if (r.ok) { const m = await r.json(); const d = { kdf: m.kdf, check: m.check }; try { localStorage.setItem("azur:gate", JSON.stringify(d)); } catch (e) {} return d; }
+    } catch (e) { /* hors ligne */ }
+    try { return JSON.parse(localStorage.getItem("azur:gate") || "null"); } catch (e) { return null; }
+  }
+  async function gateCheck(code) {
+    const d = await gateData();
+    if (!d) return "offline";
+    const te = new TextEncoder(), b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+    const base = await crypto.subtle.importKey("raw", te.encode(code), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: b64(d.kdf.salt), iterations: d.kdf.iterations }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    const c = b64(d.check);
+    try { await crypto.subtle.decrypt({ name: "AES-GCM", iv: c.slice(0, 12), additionalData: te.encode("check") }, key, c.slice(12)); return "ok"; } catch (e) { return "bad"; }
+  }
+  let afterGate = null;
+  function showGate(next, msg) { gateOpen = false; afterGate = next; st.msg = msg || ""; st.view = "gate"; root.hidden = false; render(); }
+
+  const showAccounts = show;
+  function guarded(msg) { if (WEB && !gateOpen) showGate(() => showAccounts(msg), msg); else { gateOpen = false; showAccounts(msg); } }
+  window.AzurAuth = { show: guarded };
 
   (async () => {
     try { if (window.azurNative && window.azurNative.uiReady) window.azurNative.uiReady(); } catch (e) { /* ancien logiciel */ }
     if (!window.azur.configured) { st.view = "setup"; root.hidden = false; render(false); return; }
-    const s = await window.azur.auth.session();
-    if (s.ok && s.data) { root.hidden = true; window.AzurApp.start(s.data); }
-    else show();
+    const boot = async () => {
+      const s = await window.azur.auth.session();
+      if (s.ok && s.data) { gateOpen = false; root.hidden = true; window.AzurApp.start(s.data); }
+      else { gateOpen = true; guarded(); }
+    };
+    if (WEB) showGate(boot); else boot();
   })();
 })();
