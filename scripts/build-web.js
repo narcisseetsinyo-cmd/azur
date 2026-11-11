@@ -37,4 +37,7 @@ fs.writeFileSync(path.join(src, "ui-manifest.json"), JSON.stringify(manifest, nu
 fs.rmSync(out, { recursive: true, force: true });
 fs.cpSync(src, out, { recursive: true, filter: f => !f.endsWith("cloud.src.js") });
 fs.writeFileSync(path.join(out, ".nojekyll"), "");
+// Pages propres à la version web (ex. téléchargement des logiciels), hors interface du logiciel
+const webOnly = path.join(root, "web");
+if (fs.existsSync(webOnly)) fs.cpSync(webOnly, out, { recursive: true });
 console.log(`Interface ${uiVersion} prête dans web-dist/ (${files.length} fichiers, logiciel ${manifest.minShell} minimum)`);

@@ -18,7 +18,7 @@
         <p>Entrées, dépenses, semences et épargnes : ton budget est protégé par ton mot de passe et synchronisé sur tous tes appareils.</p>
         <div class="art-points"><div>${ms("lock")}Un compte par personne, chacun ne voit que ses chiffres</div><div>${ms("sync")}Synchronisé entre Mac, Windows et le web, même hors ligne</div><div>${ms("insights")}Plafonds, objectifs et bilan chaque mois</div></div></div>
       <div class="art-foot">Azur · synchronisation sécurisée</div></section>
-    <div class="auth-side"><div class="auth-card" id="auth-card"></div></div>`;
+    <div class="auth-side"><div class="auth-card" id="auth-card"></div>${window.azurNative ? "" : `<a class="auth-dl" href="telecharger/">${ms("download")}Télécharger Azur pour Mac ou Windows</a>`}</div>`;
   const card = $("#auth-card");
 
   /* ---------- Morceaux d'interface ---------- */

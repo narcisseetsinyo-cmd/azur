@@ -6,9 +6,8 @@
  *    version web (GitHub Pages). Si une interface plus récente existe et qu'elle est compatible avec ce
  *    logiciel, ses fichiers sont téléchargés, vérifiés (empreinte SHA-256) puis utilisés au redémarrage.
  *    En cas de problème au chargement, Azur revient automatiquement à l'interface intégrée.
- * 2. Logiciel complet (Windows) : electron-updater télécharge la nouvelle version depuis GitHub Releases et
- *    l'installe au redémarrage. Sur Mac, une signature Apple payante serait nécessaire : Azur indique
- *    seulement qu'une nouvelle version complète existe.
+ * 2. Logiciel complet (Mac et Windows) : Azur lit la version publiée sur la page de téléchargement protégée
+ *    par mot de passe et signale qu'une nouvelle version existe. Elle s'installe par-dessus l'actuelle.
  */
 const { app, net } = require("electron");
 const path = require("path");
@@ -98,25 +97,14 @@ async function checkUi() {
   }
 }
 
-let autoUpdater = null;
-function setupShellUpdater() {
-  if (process.platform !== "win32" || !app.isPackaged) return;
-  try { ({ autoUpdater } = require("electron-updater")); } catch (e) { return; }
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on("update-available", i => set({ shell: { state: "downloading", version: i.version } }));
-  autoUpdater.on("download-progress", p => set({ shell: { state: "downloading", version: status.shell && status.shell.version, percent: Math.round(p.percent) } }));
-  autoUpdater.on("update-downloaded", i => set({ shell: { state: "ready", version: i.version } }));
-  autoUpdater.on("error", e => set({ shell: { state: "error", message: String(e && e.message || e).slice(0, 200) } }));
-}
-async function checkShellMac() {
-  // Sur Mac : simple vérification de la dernière version publiée
+// Le logiciel complet (rare) : Azur signale la nouvelle version, qui se télécharge sur la page protégée.
+const DOWNLOAD_PAGE = "https://narcisseetsinyo-cmd.github.io/azur/telecharger/";
+async function checkShell() {
   try {
-    const r = await net.fetch("https://api.github.com/repos/narcisseetsinyo-cmd/azur/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
+    const r = await net.fetch(DOWNLOAD_PAGE + "files/manifest.json", { cache: "no-store" });
     if (!r.ok) return;
-    const j = await r.json();
-    const v = String(j.tag_name || "").replace(/^v/, "");
-    if (v && cmp(v, SHELL_VERSION) > 0) set({ shell: { state: "manual", version: v, url: j.html_url } });
+    const v = String((await r.json()).version || "");
+    if (v && cmp(v, SHELL_VERSION) > 0) set({ shell: { state: "manual", version: v, url: DOWNLOAD_PAGE } });
   } catch (e) { /* hors ligne */ }
 }
 
@@ -133,19 +121,17 @@ async function check(manual) {
   } catch (e) {
     set({ state: manual ? "error" : "idle", message: manual ? "Impossible de vérifier les mises à jour. Vérifie ta connexion Internet." : "" });
   }
-  try { if (autoUpdater) await autoUpdater.checkForUpdates(); else if (process.platform === "darwin" && app.isPackaged) await checkShellMac(); } catch (e) { /* hors ligne */ }
+  if (app.isPackaged) await checkShell();
   busy = false;
   return status;
 }
 
 function start(onStatus) {
   notify = onStatus || (() => {});
-  setupShellUpdater();
   setTimeout(() => check(false), 8000);
   setInterval(() => check(false), 6 * 60 * 60 * 1000);
 }
 function restart() {
-  if (status.shell && status.shell.state === "ready" && autoUpdater) { autoUpdater.quitAndInstall(false, true); return; }
   app.relaunch(); app.exit(0);
 }
 const info = () => ({ shell: SHELL_VERSION, ui: uiDir().version, status });

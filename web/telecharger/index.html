@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'">
+<meta name="robots" content="noindex">
+<title>Télécharger Azur</title>
+<link rel="icon" href="../assets/mark.png">
+<style>
+@font-face{font-family:"Clash Display";src:url("../fonts/ClashDisplay-Variable.woff2") format("woff2");font-weight:200 700;font-display:swap}
+@font-face{font-family:"Outfit";src:url("../fonts/outfit-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Outfit";src:url("../fonts/outfit-latin-ext-wght-normal.woff2") format("woff2");font-weight:100 900;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1E00-1E9F,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113}
+@font-face{font-family:"Material Symbols Rounded";src:url("../fonts/material-symbols-rounded.woff2") format("woff2");font-weight:100 700;font-display:block}
+:root{
+  --night-950:#050B1A;--night-900:#0A1630;--night-800:#10224A;--night-700:#1E3A7B;
+  --sky-500:#4FA3E8;--sky-400:#7CC4F5;--sky-200:#B5DEFA;--sky-50:#F4FAFF;
+  --accent:#2E6FD8;--in:#2DD4BF;--out:#FF6B81;--gift:#FBBF24;
+  --line:rgba(124,196,245,.18);--glass:rgba(16,34,74,.55);
+  --fg:#F4FAFF;--fg-2:#B5C6E0;--fg-3:#7D8FB0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--night-950);color:var(--fg);font-family:"Outfit",system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.ms{font-family:"Material Symbols Rounded";font-weight:400;font-style:normal;font-size:22px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;font-feature-settings:"liga";-webkit-font-feature-settings:"liga";font-variation-settings:"FILL" 0,"wght" 450,"GRAD" 0,"opsz" 24;flex:none}
+.bg{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 50% at 85% 0%,rgba(79,163,232,.35),transparent 70%),radial-gradient(50% 45% at 0% 100%,rgba(46,111,216,.28),transparent 70%),linear-gradient(160deg,#050B1A 0%,#0A1630 55%,#10224A 100%)}
+.bg::after{content:"";position:absolute;right:-180px;top:120px;width:520px;height:520px;border-radius:50%;border:1px solid rgba(124,196,245,.14);box-shadow:0 0 0 70px rgba(124,196,245,.03),0 0 0 140px rgba(124,196,245,.02)}
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:"Clash Display",sans-serif;font-weight:600;font-size:22px;color:#fff;text-decoration:none}
+.brand img{width:34px;height:34px;border-radius:10px}
+.link{display:inline-flex;align-items:center;gap:6px;color:var(--sky-200);text-decoration:none;font-weight:500;font-size:14px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.link:hover{background:rgba(255,255,255,.08)}
+.link .ms{font-size:18px}
+.hero{margin:56px 0 28px;max-width:640px}
+.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--sky-400);font-weight:500;margin:0 0 10px}
+h1{font-family:"Clash Display",sans-serif;font-weight:600;font-size:clamp(34px,6vw,54px);line-height:1.04;letter-spacing:-.015em;margin:0 0 14px}
+h1 em{font-style:normal;color:var(--sky-400)}
+.lead{color:var(--fg-2);font-size:17px;margin:0}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:24px;padding:24px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 30px 80px -40px rgba(0,0,0,.7)}
+.lock{max-width:520px}
+.lock-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgba(79,163,232,.16);color:var(--sky-400);flex:none}
+.lock-h strong{display:block;font-family:"Clash Display",sans-serif;font-weight:600;font-size:18px}
+.lock-h small{color:var(--fg-3);font-size:13px}
+label{display:block;font-size:13px;color:var(--fg-2);margin-bottom:6px;font-weight:500}
+.field{position:relative}
+input{width:100%;height:52px;border-radius:15px;border:1px solid rgba(124,196,245,.28);background:rgba(5,11,26,.55);color:#fff;font:inherit;font-size:16px;padding:0 50px 0 16px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus{border-color:var(--sky-500);box-shadow:0 0 0 4px rgba(79,163,232,.18)}
+.eye{position:absolute;right:6px;top:6px;width:40px;height:40px;border:0;border-radius:11px;background:transparent;color:var(--fg-3);cursor:pointer;display:grid;place-items:center}
+.eye:hover{color:var(--fg);background:rgba(255,255,255,.06)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:50px;padding:0 20px;border-radius:15px;border:0;font:inherit;font-weight:600;font-size:15px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#2E6FD8,#4FA3E8);box-shadow:0 12px 30px -12px rgba(79,163,232,.7);transition:transform .15s,filter .2s}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.6;cursor:default;transform:none}
+.btn.wide{width:100%;margin-top:14px}
+.btn.ghost{background:rgba(255,255,255,.06);border:1px solid var(--line);box-shadow:none;color:var(--sky-200)}
+.err{color:var(--out);font-size:13.5px;margin:10px 0 0;min-height:20px;display:flex;gap:6px;align-items:center}
+.err:empty{display:none}
+.note{color:var(--fg-3);font-size:13px;margin:12px 0 0}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.dl{display:flex;flex-direction:column;gap:14px;position:relative}
+.dl.rec{border-color:rgba(124,196,245,.55);box-shadow:0 0 0 1px rgba(124,196,245,.25),0 30px 80px -40px rgba(79,163,232,.6)}
+.badge{position:absolute;top:18px;right:18px;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--night-950);background:var(--sky-400);padding:4px 9px;border-radius:999px}
+.dl h3{margin:0;font-family:"Clash Display",sans-serif;font-weight:600;font-size:19px;line-height:1.2}
+.dl p{margin:2px 0 0;color:var(--fg-3);font-size:13.5px}
+.meta{display:flex;gap:8px;flex-wrap:wrap}
+.meta span{font-size:12.5px;color:var(--fg-2);background:rgba(255,255,255,.05);border:1px solid var(--line);padding:4px 9px;border-radius:999px}
+.dl .btn{margin-top:auto}
+.prog{display:none;flex-direction:column;gap:6px;margin-top:auto}
+.dl.busy .prog{display:flex}.dl.busy .btn{display:none}
+.bar{height:10px;border-radius:10px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:10px;background:linear-gradient(90deg,#2E6FD8,#7CC4F5);transition:width .25s}
+.prog small{color:var(--fg-2);font-size:12.5px}
+.ok{color:var(--in);font-size:13px;display:flex;gap:6px;align-items:center}
+.ok .ms{font-size:18px}
+.help{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:860px){.help{grid-template-columns:minmax(0,1fr)}}
+.help h4{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-family:"Clash Display",sans-serif;font-weight:600;font-size:16px}
+.help h4 .ms{color:var(--sky-400)}
+.help ol{margin:0;padding-left:20px;color:var(--fg-2);font-size:14px}
+.help li{margin:4px 0}
+.help b{color:var(--fg);font-weight:600}
+.section-t{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px}
+.section-t h2{margin:0;font-family:"Clash Display",sans-serif;font-weight:600;font-size:22px}
+footer{margin-top:40px;color:var(--fg-3);font-size:13px;display:flex;gap:8px;align-items:center}
+footer img{width:18px;height:18px;border-radius:6px}
+[hidden]{display:none!important}
+.fade{animation:fade .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fade{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><img src="../assets/mark@2x.png" alt="">Azur</a>
+    <a class="link" href="../"><span class="ms">open_in_new</span>Ouvrir la version web</a>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Logiciel pour Mac et Windows</p>
+    <h1>Azur sur ton <em>ordinateur</em>.</h1>
+    <p class="lead">Le même compte et les mêmes données que la version web, avec les mises à jour de l'interface installées toutes seules.</p>
+  </section>
+
+  <section class="card lock fade" id="lock">
+    <div class="lock-h"><span class="ic"><span class="ms">lock</span></span><div><strong>Téléchargement protégé</strong><small>Saisis le mot de passe qui t'a été communiqué.</small></div></div>
+    <form id="f" autocomplete="off">
+      <label for="pw">Mot de passe de téléchargement</label>
+      <div class="field"><input id="pw" type="password" autocomplete="off" spellcheck="false" required><button class="eye" type="button" id="eye" aria-label="Afficher le mot de passe"><span class="ms">visibility</span></button></div>
+      <p class="err" id="err" role="alert"></p>
+      <button class="btn wide" type="submit" id="go"><span class="ms">lock_open</span>Déverrouiller</button>
+    </form>
+    <p class="note" id="vnote"></p>
+  </section>
+
+  <section id="soon" class="card lock fade" hidden>
+    <div class="lock-h"><span class="ic"><span class="ms">schedule</span></span><div><strong>Bientôt disponible</strong><small>Les installateurs sont en cours de préparation. Reviens un peu plus tard.</small></div></div>
+    <a class="btn ghost" href="../"><span class="ms">language</span>Utiliser la version web en attendant</a>
+  </section>
+
+  <section id="files" hidden>
+    <div class="section-t"><h2>Choisis ton ordinateur</h2><span class="meta" id="ver"></span></div>
+    <div class="grid" id="grid"></div>
+    <div class="help">
+      <div class="card"><h4><span class="ms">laptop_mac</span>Sur Mac</h4><ol>
+        <li>Pour savoir quel Mac tu as : menu <b>Pomme</b> › <b>À propos de ce Mac</b>. « Puce Apple » ou « M1, M2… » : choisis <b>Mac Apple</b>. « Processeur Intel » : choisis <b>Mac Intel</b>.</li>
+        <li>Ouvre le fichier <b>.dmg</b> et glisse Azur dans <b>Applications</b>.</li>
+        <li>Si macOS bloque le premier lancement : <b>Réglages Système › Confidentialité et sécurité › Ouvrir quand même</b>.</li></ol></div>
+      <div class="card"><h4><span class="ms">desktop_windows</span>Sur Windows</h4><ol>
+        <li>Ouvre le fichier <b>Azur-Setup.exe</b> téléchargé.</li>
+        <li>Si Windows affiche « Windows a protégé votre ordinateur » : <b>Informations complémentaires</b>, puis <b>Exécuter quand même</b>.</li>
+        <li>Connecte-toi avec ton compte Azur habituel : tes données arrivent toutes seules.</li></ol></div>
+    </div>
+  </section>
+
+  <footer><img src="../assets/mark@2x.png" alt=""><span><b style="color:var(--fg);font-family:'Clash Display',sans-serif;font-weight:600">Azur</b> · Ton budget, clair comme le ciel.</span></footer>
+</div>
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const B = "files/";
+  let M = null, KEY = null;
+  const mo = n => (n / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " Mo";
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const te = new TextEncoder();
+  const ICON = { win: "desktop_windows", "mac-arm64": "laptop_mac", "mac-x64": "laptop_mac" };
+
+  function guess() {
+    const ua = navigator.userAgent || "", pf = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    if (/Win/i.test(pf) || /Windows/i.test(ua)) return "win";
+    if (/Mac/i.test(pf) || /Macintosh/i.test(ua)) {
+      try { const gl = document.createElement("canvas").getContext("webgl"); const r = gl && gl.getExtension("WEBGL_debug_renderer_info"); const g = r ? gl.getParameter(r.UNMASKED_RENDERER_WEBGL) : ""; if (/Apple M|Apple GPU/i.test(g)) return "mac-arm64"; if (/Intel|AMD|Radeon/i.test(g)) return "mac-x64"; } catch (e) {}
+      return "mac";
+    }
+    return "";
+  }
+
+  async function open(sealed, aad) {
+    return crypto.subtle.decrypt({ name: "AES-GCM", iv: sealed.slice(0, 12), additionalData: te.encode(aad) }, KEY, sealed.slice(12));
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(B + "manifest.json", { cache: "no-store" });
+      if (!r.ok) throw 0;
+      M = await r.json();
+      $("#vnote").textContent = `Version ${M.version} · ${M.files.length} installateurs disponibles.`;
+    } catch (e) { $("#lock").hidden = true; $("#soon").hidden = false; }
+  }
+
+  async function unlock(pw) {
+    const base = await crypto.subtle.importKey("raw", te.encode(pw), "PBKDF2", false, ["deriveKey"]);
+    KEY = await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: b64(M.kdf.salt), iterations: M.kdf.iterations }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    try { await open(b64(M.check), "check"); return true; } catch (e) { KEY = null; return false; }
+  }
+
+  function render() {
+    const g = guess();
+    $("#ver").innerHTML = `<span>Version ${M.version}</span>`;
+    $("#grid").innerHTML = M.files.map(f => {
+      const rec = g && (f.id === g || (g === "mac" && f.id.startsWith("mac")));
+      return `<article class="card dl fade${rec && g !== "mac" ? " rec" : ""}" data-id="${f.id}">${rec && g !== "mac" ? '<span class="badge">Ton ordinateur</span>' : ""}
+        <span class="ic"><span class="ms">${ICON[f.id] || "download"}</span></span>
+        <div><h3>${f.label}</h3><p>${f.note}</p></div>
+        <div class="meta"><span>${mo(f.size)}</span><span>${f.name.endsWith(".exe") ? ".exe" : ".dmg"}</span></div>
+        <button class="btn" type="button" data-dl="${f.id}"><span class="ms">download</span>Télécharger</button>
+        <div class="prog"><div class="bar"><i></i></div><small>Préparation…</small></div>
+      </article>`;
+    }).join("");
+    $("#lock").hidden = true; $("#files").hidden = false;
+  }
+
+  async function download(id) {
+    const f = M.files.find(x => x.id === id), card = document.querySelector(`.dl[data-id="${id}"]`);
+    const bar = card.querySelector(".bar i"), txt = card.querySelector(".prog small");
+    card.querySelector(".ok") && card.querySelector(".ok").remove();
+    card.classList.add("busy");
+    const total = f.parts.reduce((a, p) => a + p.size, 0); let got = 0;
+    const out = [];
+    try {
+      for (let i = 0; i < f.parts.length; i++) {
+        const p = f.parts[i];
+        const r = await fetch(B + p.file);
+        if (!r.ok || !r.body) throw new Error("réseau");
+        const reader = r.body.getReader(), chunks = []; let n = 0;
+        for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); n += value.length; got += value.length; bar.style.width = (got / total * 100).toFixed(1) + "%"; txt.textContent = `Téléchargement : ${Math.floor(got / total * 100)} % · ${mo(got)} sur ${mo(total)}`; }
+        const buf = new Uint8Array(n); let o = 0; for (const c of chunks) { buf.set(c, o); o += c.length; }
+        out.push(await open(buf, `${f.name}#${i}`));
+      }
+      const blob = new Blob(out, { type: "application/octet-stream" });
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      card.classList.remove("busy");
+      card.querySelector(".btn").insertAdjacentHTML("beforebegin", `<p class="ok"><span class="ms">check_circle</span>${f.name} est dans tes téléchargements.</p>`);
+    } catch (e) {
+      card.classList.remove("busy");
+      card.querySelector(".btn").insertAdjacentHTML("beforebegin", `<p class="err"><span class="ms">error</span>${e && e.name === "OperationError" ? "Fichier altéré : recharge la page et réessaie." : "Le téléchargement s'est interrompu. Vérifie ta connexion et réessaie."}</p>`);
+      setTimeout(() => { const er = card.querySelector(".err"); er && er.remove(); }, 8000);
+    }
+  }
+
+  $("#eye").addEventListener("click", () => { const i = $("#pw"); const show = i.type === "password"; i.type = show ? "text" : "password"; $("#eye .ms").textContent = show ? "visibility_off" : "visibility"; });
+  $("#f").addEventListener("submit", async e => {
+    e.preventDefault();
+    const pw = $("#pw").value, go = $("#go");
+    if (!M) return;
+    go.disabled = true; go.innerHTML = '<span class="ms">hourglass_top</span>Vérification…'; $("#err").textContent = "";
+    const ok = await unlock(pw).catch(() => false);
+    go.disabled = false; go.innerHTML = '<span class="ms">lock_open</span>Déverrouiller';
+    if (ok) { $("#pw").value = ""; render(); }
+    else { $("#err").innerHTML = '<span class="ms" style="font-size:18px">error</span>Mot de passe incorrect.'; $("#pw").select(); }
+  });
+  document.addEventListener("click", e => { const b = e.target.closest("[data-dl]"); if (b) download(b.dataset.dl); });
+  load();
+})();
+</script>
+</body>
+</html>

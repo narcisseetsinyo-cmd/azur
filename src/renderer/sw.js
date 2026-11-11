@@ -23,8 +23,8 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const req = event.request;
   const url = new URL(req.url);
-  // Seulement les fichiers de l'application : Firebase et le manifeste passent toujours par le réseau
-  if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.endsWith("ui-manifest.json")) return;
+  // Seulement les fichiers de l'application : Firebase, le manifeste et la page de téléchargement passent toujours par le réseau
+  if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.endsWith("ui-manifest.json") || url.pathname.includes("/telecharger/")) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const hit = await cache.match(req, { ignoreSearch: true });

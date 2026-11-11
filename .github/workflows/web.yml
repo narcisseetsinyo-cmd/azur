@@ -66,6 +66,13 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/build-web.js
+      - name: Ajouter les installateurs chiffrés à la page de téléchargement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p web-dist/telecharger/files
+          gh release download installateurs-chiffres -R "${{ github.repository }}" -D web-dist/telecharger/files \
+            || echo "::notice title=Téléchargements::Pas encore d'installateurs chiffrés : la page affichera « Bientôt disponible »."
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publier:
-        description: "Publier une version officielle (page Releases)"
+        description: "Mettre les installateurs en ligne sur la page de téléchargement protégée"
         type: boolean
         default: false
   push:
@@ -72,32 +72,39 @@ jobs:
           name: Azur-${{ matrix.name }}
           path: ${{ matrix.files }}
           if-no-files-found: error
+          retention-days: 1
 
 
-  release:
-    name: Publier la version
+  proteger:
+    name: Mettre en ligne les installateurs protégés
     needs: build
     if: startsWith(github.ref, 'refs/tags/') || inputs.publier
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
-      - id: v
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v5
         with:
           path: out
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.v.outputs.version }}
-          target_commitish: ${{ github.sha }}
-          name: Azur ${{ steps.v.outputs.version }}
-          body: |
-            Azur, ton budget mensuel personnel, pour Windows et Mac.
-
-            - **Windows** : `Azur-Setup-${{ steps.v.outputs.version }}.exe`
-            - **Mac M1, M2, M3, M4** : `Azur-${{ steps.v.outputs.version }}-arm64.dmg`
-            - **Mac Intel** : `Azur-${{ steps.v.outputs.version }}-x64.dmg`
-
-            Au premier lancement, Windows ou macOS peut afficher un avertissement car le logiciel n'est pas encore signé. Voir le guide dans le README.
-          files: out/*
+      - name: Chiffrer avec le mot de passe de téléchargement
+        run: node scripts/encrypt-downloads.js out enc
+        env:
+          DOWNLOAD_PASSWORD: ${{ secrets.DOWNLOAD_PASSWORD }}
+      - name: Déposer les fichiers chiffrés
+        run: |
+          gh release delete installateurs-chiffres --yes --cleanup-tag || true
+          gh release create installateurs-chiffres enc/* --prerelease --target "${{ github.sha }}" \
+            --title "Installateurs chiffrés" \
+            --notes "Fichiers chiffrés utilisés par la page de téléchargement protégée par mot de passe. Illisibles sans le mot de passe."
+      - name: Effacer les installateurs en clair des artefacts
+        run: |
+          for id in $(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" --paginate -q '.artifacts[] | select(.name | startswith("Azur-")) | .id'); do
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true
+          done
+      - name: Republier la version web avec les nouveaux installateurs
+        run: gh workflow run web.yml --ref main

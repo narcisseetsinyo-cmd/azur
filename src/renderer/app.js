@@ -941,9 +941,9 @@ function updCardHtml(){
   else if(st.state==="ready"){line=`Une nouvelle version de l'interface (${esc(st.ui)}) est prête. Elle s'appliquera au prochain démarrage.`;btn=`<button class="btn primary" data-act="upd-restart" type="button">${ms("restart_alt")}Redémarrer maintenant</button>`;}
   else if(st.message)line=esc(st.message);
   let shellLine="";
-  if(sh&&sh.state==="downloading")shellLine=`Téléchargement du logiciel ${esc(sh.version||"")}${sh.percent!=null?" : "+sh.percent+" %":"…"}`;
+  if(sh&&sh.state==="downloading"&&sh.version)shellLine=`Téléchargement du logiciel ${esc(sh.version||"")}${sh.percent!=null?" : "+sh.percent+" %":"…"}`;
   else if(sh&&sh.state==="ready"){shellLine=`Le logiciel ${esc(sh.version)} est prêt et s'installera au redémarrage.`;btn=`<button class="btn primary" data-act="upd-restart" type="button">${ms("restart_alt")}Redémarrer et mettre à jour</button>`;}
-  else if(sh&&sh.state==="manual")shellLine=`Une nouvelle version complète (${esc(sh.version)}) est disponible pour Mac. Elle se télécharge sur la page des versions : <a href="${esc(sh.url)}" target="_blank" rel="noopener">ouvrir la page</a>.`;
+  else if(sh&&sh.state==="manual")shellLine=`Une nouvelle version complète du logiciel (${esc(sh.version)}) est disponible. Télécharge-la sur la page protégée, puis installe-la par-dessus l'actuelle : <a href="https://narcisseetsinyo-cmd.github.io/azur/telecharger/" target="_blank" rel="noopener">ouvrir la page de téléchargement</a>.`;
   return `<div class="set-row"><div><strong>Version ${esc(upd.shell)}${upd.uiv&&upd.uiv!==upd.shell?` · interface ${esc(upd.uiv)}`:""}</strong><small>${line}</small>${shellLine?`<small style="margin-top:4px">${shellLine}</small>`:""}</div>${btn}</div>`;
 }
 function renderUpd(){const c=$("#upd-card");if(c)c.innerHTML=updCardHtml();}
