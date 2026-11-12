@@ -360,3 +360,9 @@ p{margin:0}
 .splash.ring{border:2px solid currentColor;background:transparent}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}}
+
+/* Accès à Azur (administratrice) */
+.acc-h{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);margin:14px 0 4px}
+.acc-row small{display:block}
+.code-show{font-family:var(--font-display);font-weight:600;font-size:34px;letter-spacing:.1em;text-align:center;padding:20px;border-radius:18px;background:var(--surface-2);border:1px dashed var(--line-strong);color:var(--fg);user-select:all;font-variant-numeric:tabular-nums}
+.acc-row{padding:8px 0}

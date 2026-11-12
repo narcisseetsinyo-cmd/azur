@@ -13,7 +13,8 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
   doc, collection, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs, getDoc, serverTimestamp,
-  terminate, clearIndexedDbPersistence, updateDoc, deleteField, FieldPath
+  terminate, clearIndexedDbPersistence, updateDoc, deleteField, FieldPath,
+  getDocFromServer, query, where, Timestamp
 } from "firebase/firestore";
 
 const native = window.azurNative || null; // présent seulement dans le logiciel Windows / Mac
@@ -193,6 +194,84 @@ async function openSession(user, kind, ident, displayName) {
   return { ...publicAccount({ uid: user.uid, kind, displayName, masked: session.masked, lastLogin: Date.now() }), verified: kind === "email" ? !!user.emailVerified : null };
 }
 
+/* ---------- Accès validé par l'administratrice ----------
+   Chaque personne (sauf l'administratrice) demande l'accès ; l'administratrice lui envoie un code unique,
+   lié à son compte, utilisable une seule fois et valable 7 jours. Les règles Firestore le garantissent. */
+const ADMIN_EMAIL = "narcisseetsinyo@gmail.com";
+const CODE_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const isAdmin = () => !!(auth && auth.currentUser && String(auth.currentUser.email || "").toLowerCase() === ADMIN_EMAIL);
+const accessKey = uid => `azur:access:${uid}`;
+const cleanCode = c => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const prettyCode = c => c.replace(/^(.{4})(.{4})$/, "$1-$2");
+function newCode() { const b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => CODE_ABC[x % CODE_ABC.length]).join(""); }
+const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej({ code: "unavailable" }), ms))]);
+const tsMs = t => (t && t.toMillis ? t.toMillis() : 0);
+const access = {
+  status: wrap(async () => {
+    const uid = need();
+    if (isAdmin()) return { state: "admin" };
+    let cached = null; try { cached = localStorage.getItem(accessKey(uid)); } catch (e) {}
+    if (!online()) return { state: cached === "ok" ? "granted" : "offline" };
+    try {
+      const g = await withTimeout(getDocFromServer(doc(db, "grants", uid)), 8000);
+      if (g.exists()) { try { localStorage.setItem(accessKey(uid), "ok"); } catch (e) {} return { state: "granted" }; }
+      try { localStorage.removeItem(accessKey(uid)); } catch (e) {}
+      const ref = doc(db, "accessRequests", uid);
+      let r = await getDocFromServer(ref);
+      if (!r.exists()) { await setDoc(ref, { name: session.displayName, ident: session.identifier, kind: session.kind, at: serverTimestamp() }); r = await getDocFromServer(ref); }
+      const d = r.data() || {};
+      return { state: "pending", at: tsMs(d.at), invited: !!d.invited };
+    } catch (e) {
+      if (/unavailable|network/.test((e && e.code) || "")) return { state: cached === "ok" ? "granted" : "offline" };
+      throw e;
+    }
+  }),
+  redeem: wrap(async raw => {
+    const uid = need(), code = cleanCode(raw);
+    if (code.length !== 8) throw { code: "bad_code", message: "Le code compte 8 caractères, par exemple ABCD-EFGH." };
+    if (!online()) throw { code: "offline", message: "Une connexion Internet est nécessaire pour valider le code." };
+    const b = writeBatch(db);
+    b.update(doc(db, "invites", code), { used: true, usedAt: serverTimestamp() });
+    b.set(doc(db, "grants", uid), { code, at: serverTimestamp(), name: session.displayName, ident: session.identifier, kind: session.kind });
+    try { await b.commit(); }
+    catch (e) { if (/permission|not-found/.test((e && e.code) || "")) throw { code: "bad_code", message: "Ce code n'est pas valable : il est faux, déjà utilisé, expiré ou prévu pour un autre compte." }; throw e; }
+    deleteDoc(doc(db, "accessRequests", uid)).catch(() => {});
+    try { localStorage.setItem(accessKey(uid), "ok"); } catch (e) {}
+    return true;
+  }),
+  isAdmin: () => isAdmin(),
+  // Administratrice : demandes, codes envoyés, personnes autorisées
+  overview: wrap(async () => {
+    need(); if (!isAdmin()) throw { code: "forbidden", message: "Réservé à l'administratrice." };
+    const [rq, inv, gr] = await Promise.all([getDocs(collection(db, "accessRequests")), getDocs(query(collection(db, "invites"), where("used", "==", false))), getDocs(collection(db, "grants"))]);
+    const invites = inv.docs.map(d => ({ code: d.id, pretty: prettyCode(d.id), ...d.data() })).map(x => ({ code: x.code, pretty: x.pretty, for: x.for, name: x.name, expires: tsMs(x.expires), expired: tsMs(x.expires) < Date.now() }));
+    return {
+      requests: rq.docs.map(d => ({ uid: d.id, name: d.data().name, ident: d.data().ident, kind: d.data().kind, at: tsMs(d.data().at), invite: invites.find(i => i.for === d.id) || null })).sort((a, b) => b.at - a.at),
+      granted: gr.docs.map(d => ({ uid: d.id, name: d.data().name, ident: d.data().ident, kind: d.data().kind, at: tsMs(d.data().at) })).sort((a, b) => b.at - a.at)
+    };
+  }),
+  approve: wrap(async uid => {
+    need(); if (!isAdmin()) throw { code: "forbidden", message: "Réservé à l'administratrice." };
+    const req = await getDoc(doc(db, "accessRequests", uid));
+    const name = req.exists() ? req.data().name : "";
+    const old = await getDocs(query(collection(db, "invites"), where("for", "==", uid), where("used", "==", false)));
+    const code = newCode();
+    const b = writeBatch(db);
+    old.docs.forEach(d => b.delete(d.ref));
+    b.set(doc(db, "invites", code), { for: uid, name, used: false, createdAt: serverTimestamp(), expires: Timestamp.fromMillis(Date.now() + 7 * 86400000) });
+    if (req.exists()) b.update(doc(db, "accessRequests", uid), { invited: true, invitedAt: serverTimestamp() });
+    await b.commit();
+    return { code, pretty: prettyCode(code), name };
+  }),
+  cancelInvite: wrap(async code => { need(); await deleteDoc(doc(db, "invites", cleanCode(code))); return true; }),
+  decline: wrap(async uid => { need(); await deleteDoc(doc(db, "accessRequests", uid)); return true; }),
+  revoke: wrap(async uid => { need(); await deleteDoc(doc(db, "grants", uid)); return true; }),
+  onRequests: fn => {
+    if (!db || !isAdmin()) return () => {};
+    return onSnapshot(collection(db, "accessRequests"), s => fn(s.docs.filter(d => !d.data().invited).length), () => {});
+  }
+};
+
 window.azur = {
   configured: !!config,
   auth: {
@@ -366,6 +445,7 @@ window.azur = {
     }),
     onRemote: fn => { remoteCbs.push(fn); return () => { remoteCbs = remoteCbs.filter(f => f !== fn); }; }
   },
+  access,
   sync: {
     status: () => status,
     onStatus: fn => { statusCbs.push(fn); fn(status); return () => { statusCbs = statusCbs.filter(f => f !== fn); }; }

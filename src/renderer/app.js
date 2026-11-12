@@ -129,6 +129,43 @@ function txRow(t,showDate){
 }
 const emptyHtml=(icon,title,text,btn)=>`<div class="empty">${ms(icon)}<strong>${title}</strong><p>${text}</p>${btn||""}</div>`;
 /* Bandeaux : adresse à confirmer, sauvegarde à faire */
+/* ---------- Accès (administratrice) ---------- */
+let accessPending=0,stopAccess=null,accessData=null;
+const isAdmin=()=>!!(window.azur.access&&window.azur.access.isAdmin());
+function accessBanner(){
+  if(!isAdmin()||!accessPending)return "";
+  return `<div class="banner accent">${ms("person_add")}<p><strong>${accessPending} demande${accessPending>1?"s":""} d'accès</strong> en attente de ta validation.</p><div class="btn-row"><button class="btn sm" data-act="access-see" type="button">Voir</button></div></div>`;
+}
+const dShort=ms=>ms?new Date(ms).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}):"";
+function accessCardHtml(){
+  const d=accessData;
+  if(!d)return `<p class="small muted">Chargement…</p>`;
+  if(d.error)return `<p class="small muted">${esc(d.error)}</p><button class="btn sm" data-act="access-load" type="button">${ms("refresh")}Réessayer</button>`;
+  const who=x=>`<div style="min-width:0"><strong>${esc(x.name||"Sans nom")}</strong><small>${esc(x.ident||"")}${x.at?" · "+(x.when||"")+dShort(x.at):""}</small></div>`;
+  const req=d.requests.map(x=>`<div class="set-row acc-row">${who({...x,when:"demandé le "})}<div class="btn-row">${x.invite&&!x.invite.expired
+      ?`<button class="btn sm" data-act="access-show" data-code="${esc(x.invite.code)}" data-name="${esc(x.name||"")}" type="button">${ms("key")}Code envoyé</button>`
+      :`<button class="btn sm primary" data-act="access-approve" data-uid="${esc(x.uid)}" type="button">${ms("verified_user")}Valider</button>`}<button class="btn sm ghost" data-act="access-decline" data-uid="${esc(x.uid)}" data-name="${esc(x.name||"")}" type="button" aria-label="Refuser la demande">${ms("close")}</button></div></div>`).join("");
+  const gr=d.granted.map(x=>`<div class="set-row acc-row">${who({...x,when:"depuis le "})}<button class="btn sm" data-act="access-revoke" data-uid="${esc(x.uid)}" data-name="${esc(x.name||"")}" type="button">${ms("person_remove")}Retirer</button></div>`).join("");
+  return `<h3 class="acc-h">Demandes en attente</h3>${req||`<p class="small muted">Aucune demande pour l'instant.</p>`}
+    <h3 class="acc-h">Personnes autorisées</h3>${gr||`<p class="small muted">Personne d'autre que toi pour l'instant.</p>`}
+    <p class="small muted" style="margin-top:10px">Chaque code ne marche que pour le compte qui a fait la demande, une seule fois, pendant 7 jours. Valider à nouveau crée un nouveau code et annule l'ancien.</p>`;
+}
+async function loadAccess(){
+  const r=await window.azur.access.overview();
+  accessData=r.ok?r.data:{error:r.error.message};
+  const el=$("#access-card");if(el)el.innerHTML=accessCardHtml();
+}
+function showCode(code,name){
+  const pretty=code.replace(/^(.{4})(.{4})$/,"$1-$2");
+  const msg=`Bonjour${name?" "+name.split(" ")[0]:""}, voici ton code d'accès à Azur : ${pretty}\nSaisis-le dans Azur après t'être connecté(e). Il ne marche qu'avec ton compte, une seule fois, pendant 7 jours.`;
+  const sh=openSheet(`<div class="grab"></div><div class="sheet-h"><h2>Code d'accès${name?" de "+esc(name):""}</h2><button class="icon-btn" data-act="close" type="button" aria-label="Fermer">${ms("close")}</button></div>
+    <p class="muted">Envoie ce code à ${name?esc(name.split(" ")[0]):"la personne"}. Il ne fonctionne qu'avec son compte et une seule fois.</p>
+    <div class="code-show">${esc(pretty)}</div>
+    <div class="sheet-acts"><button class="btn" type="button" id="cd-copy">${ms("content_copy")}Copier</button><a class="btn primary" style="flex:1" id="cd-wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">${ms("send")}Envoyer par WhatsApp</a></div>
+    <button class="btn ghost block" type="button" id="cd-cancel">${ms("block")}Annuler ce code</button>`);
+  $("#cd-copy",sh).onclick=()=>copyText(pretty);
+  $("#cd-cancel",sh).onclick=async()=>{const r=await window.azur.access.cancelInvite(code);closeSheet();toast(r.ok?"Code annulé.":r.error.message);loadAccess();};
+}
 function verifyBanner(){
   const u=session.user;if(!u||u.kind!=="email"||u.verified!==false)return "";
   return `<div class="banner accent">${ms("mark_email_unread")}<p>Confirme ton adresse <strong>${esc(u.masked)}</strong> : ouvre le lien reçu par e-mail. Sans confirmation, tu ne pourras pas réinitialiser ton mot de passe en cas d'oubli.</p><div class="btn-row"><button class="btn sm" data-act="verify-check" type="button">C'est fait</button><button class="btn sm ghost" data-act="verify-send" type="button">Renvoyer l'e-mail</button></div></div>`;
@@ -175,7 +212,7 @@ function vHome(){
   if(isNow&&allTx().length){const pd=Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-p.startD)/864e5);const pv=period(-1);
     if(pd<7&&inPeriod(pv).length)reviewBanner=`<div class="banner accent">${ms("summarize")}<p>Ton bilan de <strong>${esc(pv.label.toLowerCase())}</strong> est prêt, avec des plafonds suggérés pour ce mois.</p><button class="btn sm" data-act="review-prev" type="button">Voir le bilan</button></div>`;
     else if(left<=3)reviewBanner=`<div class="banner accent">${ms("summarize")}<p>Le mois se termine dans ${left} jour${left>1?"s":""}. Ton bilan de ${esc(p.label.toLowerCase())} se dessine.</p><button class="btn sm" data-nav="review" type="button">Voir le bilan</button></div>`;}
-  return `${verifyBanner()}${demoBanner()}${backupBanner()}${reviewBanner}
+  return `${accessBanner()}${verifyBanner()}${demoBanner()}${backupBanner()}${reviewBanner}
   <div class="home-grid">
    <div class="col">
     <article class="hero" id="hero" ${I()}>
@@ -328,6 +365,7 @@ function vSettings(){
     <div class="set-row"><div><strong>Se déconnecter</strong><small>Retour à l'écran de connexion</small></div><button class="btn" data-act="logout" type="button">${ms("logout")}Se déconnecter</button></div>
     <div class="set-row"><div><strong>Oublier ce compte sur cet appareil</strong><small>Pour un ordinateur ou un téléphone partagé : retire le compte de la liste et efface la copie de tes données gardée ici. Tes données restent en ligne.</small></div><button class="btn" data-act="acc-forget" type="button">${ms("phonelink_erase")}Oublier</button></div>
   </section>
+  ${isAdmin()?`<section class="card set-sec" id="access-sec" style="--i:1"><div class="card-h" style="margin:0"><h2>Accès à Azur</h2><button class="icon-btn" data-act="access-load" type="button" aria-label="Actualiser">${ms("refresh")}</button></div><div id="access-card">${accessCardHtml()}</div></section>`:""}
   <section class="card set-sec" style="--i:1"><h2>Synchronisation</h2>
     <div class="status" id="sync-card">${syncCardHtml()}</div>
     ${window.azur.legacy?`<div class="set-row"><div><strong>Données de la version 1.0</strong><small>Récupère les opérations enregistrées sur cet ordinateur avant la synchronisation</small></div><button class="btn" data-act="legacy-open" type="button">${ms("move_to_inbox")}Importer</button></div>`:""}
@@ -369,6 +407,7 @@ function render(soft){
   const html={home:vHome,ops:vOps,budgets:vBudgets,goals:vGoals,stats:vStats,settings:vSettings,review:vReview}[v]();
   el.classList.remove("enter");
   el.innerHTML=html;
+  if(v==="settings"&&isAdmin()&&!accessData)loadAccess();
   if(ui.anim&&!soft&&!reduced){void el.offsetWidth;el.classList.add("enter");}
   ui.anim=false;
   if(focusId){const f=document.getElementById(focusId);if(f&&f.tagName==="INPUT"&&f.type!=="search")f.focus();}
@@ -827,6 +866,12 @@ document.addEventListener("click",e=>{
     case "logout":logout();break;
     case "acc-rename":openAccount("rename");break;
     case "acc-password":openAccount("password");break;
+    case "access-see":go("settings");setTimeout(()=>{const e=$("#access-sec");if(e)e.scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});},120);break;
+    case "access-load":accessData=null;{const e=$("#access-card");if(e)e.innerHTML=accessCardHtml();}loadAccess();break;
+    case "access-approve":(async()=>{b.disabled=true;const r=await window.azur.access.approve(b.dataset.uid);b.disabled=false;if(!r.ok){toast(r.error.message);return;}showCode(r.data.code,r.data.name);loadAccess();})();break;
+    case "access-show":showCode(b.dataset.code,b.dataset.name);break;
+    case "access-decline":confirmBox(`Refuser la demande de ${b.dataset.name||"cette personne"} ?`,"La demande disparaît de la liste. La personne pourra en faire une nouvelle en se reconnectant.","Refuser",async()=>{const r=await window.azur.access.decline(b.dataset.uid);toast(r.ok?"Demande refusée.":r.error.message);loadAccess();});break;
+    case "access-revoke":confirmBox(`Retirer l'accès de ${b.dataset.name||"cette personne"} ?`,"Elle ne pourra plus ouvrir son budget. Ses données ne sont pas effacées : si tu lui redonnes l'accès plus tard, elle les retrouvera.","Retirer",async()=>{const r=await window.azur.access.revoke(b.dataset.uid);toast(r.ok?"Accès retiré.":r.error.message);loadAccess();});break;
     case "verify-send":(async()=>{const r=await window.azur.account.sendVerification();toast(r.ok?`E-mail envoyé à ${r.data}. Pense aux courriers indésirables.`:r.error.message);})();break;
     case "verify-check":(async()=>{const r=await window.azur.account.verification();if(r.ok&&r.data.verified){session.user={...session.user,verified:true};render(true);toast("Adresse confirmée, merci.");}else toast(r.ok?"Pas encore confirmée. Ouvre le lien reçu par e-mail, puis réessaie.":r.error.message);})();break;
     case "backup-now":exportJson();break;
@@ -1057,9 +1102,11 @@ window.AzurApp={
     stopRemote=window.azur.data.onRemote(st=>{remoteState=st;applyRemote();});
     stopStatus=window.azur.sync.onStatus(renderSync);
     maybeOfferLegacy();
+    accessData=null;accessPending=0;
+    if(isAdmin())stopAccess=window.azur.access.onRequests(n=>{const ch=n!==accessPending;accessPending=n;if(ch&&!sheet&&ui.view==="home")render();if(ui.view==="settings")loadAccess();});
   },
   stop(){
-    if(stopRemote)stopRemote();if(stopStatus)stopStatus();stopRemote=stopStatus=null;remoteState=null;
+    if(stopRemote)stopRemote();if(stopStatus)stopStatus();if(stopAccess)stopAccess();stopRemote=stopStatus=stopAccess=null;remoteState=null;accessData=null;accessPending=0;
     session.user=null;closeSheet(true);
     S={config:defaultConfig(),tx:{}};
     $("#view").innerHTML="";$(".app").hidden=true;$(".tabbar").hidden=true;

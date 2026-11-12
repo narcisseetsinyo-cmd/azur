@@ -1,9 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Chaque compte ne peut lire et modifier que ses propres données
+    function signedIn() { return request.auth != null; }
+    function me(uid) { return signedIn() && request.auth.uid == uid; }
+    // Administratrice : la seule à pouvoir valider les demandes d'accès
+    function isAdmin() { return signedIn() && request.auth.token.email == "narcisseetsinyo@gmail.com"; }
+    function granted(uid) { return exists(/databases/$(database)/documents/grants/$(uid)); }
+
+    // Fiche du compte (nom affiché) : toujours accessible à son propriétaire
+    match /users/{uid} {
+      allow read, write: if me(uid);
+    }
+    // Données du budget : propriétaire seulement, et seulement si son accès a été validé
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if me(uid) && (isAdmin() || granted(uid));
+    }
+
+    // Demandes d'accès : la personne crée la sienne, l'administratrice les voit et les traite
+    match /accessRequests/{uid} {
+      allow read: if me(uid) || isAdmin();
+      allow create: if me(uid) && request.resource.data.keys().hasOnly(['name', 'ident', 'kind', 'at']);
+      allow update: if isAdmin()
+        || (me(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'ident', 'kind', 'at']));
+      allow delete: if me(uid) || isAdmin();
+    }
+
+    // Codes d'accès : uniques, liés à UNE personne, utilisables une seule fois, valables 7 jours
+    match /invites/{code} {
+      allow create: if isAdmin() && request.resource.data.used == false && request.resource.data.for is string;
+      allow read, delete: if isAdmin();
+      allow get: if signedIn() && resource.data.for == request.auth.uid;
+      // Utilisation du code : seulement par la personne prévue, une seule fois, avant l'expiration,
+      // et en même temps que la création de son autorisation
+      allow update: if signedIn()
+        && resource.data.for == request.auth.uid
+        && resource.data.used == false
+        && request.time < resource.data.expires
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedAt'])
+        && request.resource.data.used == true
+        && getAfter(/databases/$(database)/documents/grants/$(request.auth.uid)).data.code == code;
+    }
+
+    // Autorisations : créées par la personne au moment où elle utilise son code, retirées par l'administratrice
+    match /grants/{uid} {
+      allow read: if me(uid) || isAdmin();
+      allow create: if me(uid)
+        && request.resource.data.keys().hasOnly(['code', 'at', 'name', 'ident', 'kind'])
+        && request.resource.data.code is string
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.for == uid
+        && get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.used == false
+        && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.used == true;
+      allow delete: if isAdmin();
     }
   }
 }

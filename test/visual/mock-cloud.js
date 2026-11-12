@@ -1,6 +1,5 @@
 /* Faux module cloud pour les tests visuels : même interface que cloud.js, tout en mémoire, sans Firebase. */
 (() => {
-  window.AZUR_GATE = false; // pas de code d'accès dans les tests
   const ok = data => Promise.resolve({ ok: true, data });
   let accounts = [], session = null, state = { config: null, tx: {} }, remote = [], statusCbs = [];
   const mask = (k, id) => (k === "email" ? id.slice(0, 2) + "•••••@" + id.split("@")[1] : id.slice(0, 4) + " •• •• " + id.slice(-4, -2) + " " + id.slice(-2));
@@ -24,6 +23,12 @@
       replaceMonth: (m, items) => { state.tx[m] = JSON.parse(JSON.stringify(items || [])); return ok(true); },
       replaceAll: s => { state = JSON.parse(JSON.stringify(s)); return ok(true); },
       onRemote: fn => { remote.push(fn); return () => {}; }
+    },
+    access: {
+      status: () => ok({ state: "admin" }), redeem: () => ok(true), isAdmin: () => true,
+      overview: () => ok({ requests: [{ uid: "r1", name: "Kodjo Amegah", ident: "kodjo.amegah@gmail.com", kind: "email", at: Date.now() - 864e5, invite: null }, { uid: "r2", name: "Abla Dossou", ident: "+228 90 11 22 33", kind: "phone", at: Date.now() - 3 * 864e5, invite: { code: "K7QM4XPA", expired: false } }], granted: [{ uid: "g1", name: "Yao Mensah", ident: "yao.mensah@gmail.com", kind: "email", at: Date.now() - 20 * 864e5 }] }),
+      approve: () => ok({ code: "H3TR9WQE", pretty: "H3TR-9WQE", name: "Kodjo Amegah" }), cancelInvite: () => ok(true), decline: () => ok(true), revoke: () => ok(true),
+      onRequests: fn => { fn(1); return () => {}; }
     },
     sync: { status: () => ({ state: "synced", pending: false }), onStatus: fn => { statusCbs.push(fn); fn({ state: "synced", pending: false }); return () => {}; } },
     file: { save: () => ok({ saved: true }) },

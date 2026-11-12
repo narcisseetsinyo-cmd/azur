@@ -60,8 +60,14 @@
         ${err}<button class="btn primary lg block" type="submit">${ms("mail")}Recevoir le lien par e-mail</button></form>
       <div class="notice">${ms("smartphone")}<span>Les comptes créés avec un numéro de téléphone ne peuvent pas recevoir de lien. Si tu as oublié ce mot de passe, crée un nouveau compte avec ton adresse Gmail.</span></div>
       <p class="auth-switch"><button class="link" type="button" data-a="go" data-v="${st.accounts.length ? "pick" : "login"}">Retour à la connexion</button></p>`,
-    gate: () => `${logo}${notice()}<div><h2>Code d'accès</h2><p class="lead">La version web d'Azur est réservée. Saisis le code d'accès pour continuer vers la connexion.</p></div>
-      <form class="auth-form" data-f="gate" novalidate>${pwField("x-gate", "Code d'accès", "off")}${err}<button class="btn primary lg block" type="submit">${ms("key")}Continuer</button></form>`,
+    access: () => {
+      const a = st.access || {}, off = a.state === "offline";
+      return `${logo}${notice()}<div><h2>${off ? "Connexion nécessaire" : "Demande d'accès envoyée"}</h2><p class="lead">${off
+        ? "Ton accès à Azur doit être vérifié une première fois avec Internet. Connecte-toi à Internet puis réessaie."
+        : `Bonjour ${esc(firstName(st.user && st.user.displayName))}, l'administratrice a reçu ta demande. Elle va t'envoyer un <strong>code d'accès personnel</strong> : il ne fonctionne qu'avec ton compte et une seule fois.`}</p></div>
+      ${off ? `<button class="btn primary lg block" type="button" data-a="access-retry">${ms("refresh")}Réessayer</button>` : `<form class="auth-form" data-f="redeem" novalidate><label class="field"><span>Code reçu</span><input class="input code-in" id="x-redeem" autocomplete="one-time-code" placeholder="ABCD-EFGH" maxlength="12" spellcheck="false" autocapitalize="characters"></label>${err}<button class="btn primary lg block" type="submit">${ms("verified_user")}Valider mon accès</button></form>`}
+      <p class="auth-switch"><button class="link" type="button" data-a="access-out">Se déconnecter</button></p>`;
+    },
     setup: () => `${logo}<div><h2>Azur n'est pas encore relié</h2><p class="lead">Cette version attend la configuration Firebase du projet. Ajoute-la dans <code>src/renderer/firebase-config.js</code>, puis relance l'application.</p></div>`,
     code: () => `${logo}<div class="notice ok">${ms("check_circle")}<span>${esc(st.codeTitle)}</span></div>
       <div><h2>Ton code de secours</h2><p class="lead">Si tu oublies ton mot de passe, ce code te permettra d'en choisir un nouveau. Note-le sur papier et garde-le en lieu sûr : il ne sera plus affiché.</p></div>
@@ -111,10 +117,19 @@
     if (p.length < 8 || !/\d/.test(p) || !/[A-Za-zÀ-ÿ]/.test(p)) s = Math.min(s, 1);
     return p ? Math.max(1, s) : 0;
   }
-  function enter(user) {
-    st.msg = ""; st.code = null; clearInterval(lockTimer);
+  function openApp(user) {
+    st.msg = ""; st.code = null; st.access = null; clearInterval(lockTimer);
     root.hidden = true; card.innerHTML = "";
     window.AzurApp.start(user);
+  }
+  async function enter(user) {
+    st.user = user;
+    const acc = window.azur.access;
+    if (!acc) return openApp(user);
+    const r = await acc.status();
+    if (r.ok && (r.data.state === "admin" || r.data.state === "granted")) return openApp(user);
+    st.access = r.ok ? r.data : { state: "offline" };
+    st.msg = ""; st.view = "access"; root.hidden = false; render();
   }
 
   /* ---------- Actions ---------- */
@@ -135,6 +150,8 @@
       b.setAttribute("aria-label", show ? "Masquer le mot de passe" : "Afficher le mot de passe");
     }
     else if (a === "copy") { try { await navigator.clipboard.writeText(st.code); b.innerHTML = `${ms("check")}Code copié`; } catch (x) { setErr("Copie impossible : note le code à la main."); } }
+    else if (a === "access-retry") { b.disabled = true; await enter(st.user); }
+    else if (a === "access-out") { await window.azur.auth.logout(); st.access = null; show(); }
     else if (a === "enter") { if (!$("#x-saved").checked) { setErr("Coche la case pour confirmer que tu as noté ton code."); return; } enter(st.user); }
   });
 
@@ -152,17 +169,14 @@
     e.preventDefault();
     const form = e.target, f = form.dataset.f;
     setErr("");
-    if (f === "gate") {
-      const code = $("#x-gate").value;
-      if (Date.now() < gateUntil) return setErr(`Trop d'essais. Réessaie dans ${Math.ceil((gateUntil - Date.now()) / 1000)} s.`);
-      if (!code) return setErr("Saisis le code d'accès.");
+    if (f === "redeem") {
+      const code = $("#x-redeem").value;
+      if (!code.trim()) return setErr("Saisis le code reçu de l'administratrice.");
       busy(form, true, "Vérification…");
-      const r = await gateCheck(code).catch(() => "bad");
+      const r = await window.azur.access.redeem(code);
       busy(form, false);
-      if (r === "offline") return setErr("Impossible de vérifier le code : vérifie ta connexion Internet.");
-      if (r !== "ok") { gateFails++; if (gateFails >= 5) { gateFails = 0; gateUntil = Date.now() + 30000; } $("#x-gate").select(); return setErr("Code d'accès incorrect."); }
-      gateFails = 0; gateOpen = true; const next = afterGate; afterGate = null; st.msg = ""; next && next();
-      return;
+      if (!r.ok) { $("#x-redeem").select(); return setErr(r.error.message); }
+      return openApp(st.user);
     }
     if (f === "login") {
       const password = $("#x-pw").value;
@@ -215,42 +229,13 @@
     st.view = st.accounts.length ? "pick" : "register";
     root.hidden = false; render();
   }
-  /* ---------- Code d'accès de la version web (demandé avant chaque connexion) ----------
-     Le code n'est écrit nulle part : il est vérifié en déchiffrant un témoin publié avec les installateurs
-     (même mot de passe que la page de téléchargement). */
-  const WEB = !window.azurNative && window.AZUR_GATE !== false;
-  let gateOpen = false, gateMsg = "", gateFails = 0, gateUntil = 0;
-  async function gateData() {
-    try {
-      const r = await fetch("telecharger/files/manifest.json", { cache: "no-store" });
-      if (r.ok) { const m = await r.json(); const d = { kdf: m.kdf, check: m.check }; try { localStorage.setItem("azur:gate", JSON.stringify(d)); } catch (e) {} return d; }
-    } catch (e) { /* hors ligne */ }
-    try { return JSON.parse(localStorage.getItem("azur:gate") || "null"); } catch (e) { return null; }
-  }
-  async function gateCheck(code) {
-    const d = await gateData();
-    if (!d) return "offline";
-    const te = new TextEncoder(), b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
-    const base = await crypto.subtle.importKey("raw", te.encode(code), "PBKDF2", false, ["deriveKey"]);
-    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: b64(d.kdf.salt), iterations: d.kdf.iterations }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-    const c = b64(d.check);
-    try { await crypto.subtle.decrypt({ name: "AES-GCM", iv: c.slice(0, 12), additionalData: te.encode("check") }, key, c.slice(12)); return "ok"; } catch (e) { return "bad"; }
-  }
-  let afterGate = null;
-  function showGate(next, msg) { gateOpen = false; afterGate = next; st.msg = msg || ""; st.view = "gate"; root.hidden = false; render(); }
-
-  const showAccounts = show;
-  function guarded(msg) { if (WEB && !gateOpen) showGate(() => showAccounts(msg), msg); else { gateOpen = false; showAccounts(msg); } }
-  window.AzurAuth = { show: guarded };
+  window.AzurAuth = { show };
 
   (async () => {
     try { if (window.azurNative && window.azurNative.uiReady) window.azurNative.uiReady(); } catch (e) { /* ancien logiciel */ }
     if (!window.azur.configured) { st.view = "setup"; root.hidden = false; render(false); return; }
-    const boot = async () => {
-      const s = await window.azur.auth.session();
-      if (s.ok && s.data) { gateOpen = false; root.hidden = true; window.AzurApp.start(s.data); }
-      else { gateOpen = true; guarded(); }
-    };
-    if (WEB) showGate(boot); else boot();
+    const s = await window.azur.auth.session();
+    if (s.ok && s.data) await enter(s.data);
+    else show();
   })();
 })();

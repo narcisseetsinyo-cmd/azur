@@ -6,7 +6,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const R = path.resolve("src/renderer");
-const CFG = `window.AZUR_FIREBASE={apiKey:"demo-key",authDomain:"demo-azur.firebaseapp.com",projectId:"demo-azur",appId:"1:1:web:1"};window.AZUR_VERSION="test";window.AZUR_GATE=false;`;
+const CFG = `window.AZUR_FIREBASE={apiKey:"demo-key",authDomain:"demo-azur.firebaseapp.com",projectId:"demo-azur",appId:"1:1:web:1"};window.AZUR_VERSION="test";`;
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split("?")[0]);
@@ -43,12 +43,54 @@ async function addOp(p, amount, note) {
 const notes = p => p.evaluate(() => [...document.querySelectorAll(".tx-txt small")].map(x => x.textContent).join(" | "));
 
 try {
-  // Appareil A : création du compte
+  const register = async (P, name, ident, pw, phone) => {
+    await P.fill("#x-name", name);
+    if (phone) { await P.click("[data-a=kind][data-k=phone]"); await P.fill("#x-phone", ident); } else await P.fill("#x-email", ident);
+    await P.fill("#x-pw", pw); await P.fill("#x-pw2", pw); await P.click("form button[type=submit]");
+  };
+  const redeem = async (P, code) => { await P.fill("#x-redeem", code); await P.click("form[data-f=redeem] button[type=submit]"); await P.waitForTimeout(1500); };
+
+  // Administratrice : entre directement
+  const D = await device("Admin");
+  await register(D.p, "Narcisse Admin", "narcisseetsinyo@gmail.com", "Admin2026!");
+  check("L'administratrice entre directement dans l'app", await until(() => D.p.isVisible(".app")));
+
+  // Appareil A : création du compte, puis demande d'accès
   const A = await device("A");
-  await A.p.fill("#x-name", "Ama Mensah"); await A.p.fill("#x-email", "ama@gmail.com");
-  await A.p.fill("#x-pw", "Azur2026!"); await A.p.fill("#x-pw2", "Azur2026!");
-  await A.p.click("form button[type=submit]");
-  check("A crée son compte et entre dans l'app", await until(() => A.p.isVisible(".app")));
+  await register(A.p, "Ama Mensah", "ama@gmail.com", "Azur2026!");
+  check("Un nouveau compte attend la validation", await until(() => A.p.isVisible("#x-redeem")));
+  check("Sans validation, ses données sont inaccessibles", (await A.p.evaluate(() => window.__azurTest.readOther(window.__azurTest.uid()))) !== "allowed");
+
+  // L'administratrice voit la demande et crée un code
+  check("L'administratrice est prévenue de la demande", await until(async () => (await D.p.textContent("#view")).includes("demande d'accès")));
+  await click(D.p, "[data-nav=settings]");
+  check("La demande apparaît dans Paramètres", await until(async () => (await D.p.textContent("#access-card")).includes("Ama Mensah")));
+  await D.p.evaluate(() => [...document.querySelectorAll("#access-card .acc-row")].find(r => r.textContent.includes("Ama Mensah")).querySelector("[data-act=access-approve]").click());
+  check("Un code d'accès est créé", await until(() => D.p.isVisible(".code-show")));
+  const codeA = (await D.p.textContent(".code-show")).trim();
+  await click(D.p, "[data-act=close]");
+
+  // Le code ne marche pas pour un autre compte
+  const E = await device("E");
+  await register(E.p, "Kossi Intrus", "kossi@gmail.com", "Intrus2026!");
+  await until(() => E.p.isVisible("#x-redeem"));
+  await redeem(E.p, codeA);
+  check("Le code d'Ama est refusé pour un autre compte", (await E.p.isVisible("#x-redeem")) && (await E.p.textContent("#x-err")).includes("pas valable"), await E.p.textContent("#x-err"));
+
+  // Ama utilise son code
+  await redeem(A.p, "ZZZZ-ZZZZ");
+  check("Un faux code est refusé", (await A.p.textContent("#x-err")).includes("pas valable"));
+  await redeem(A.p, codeA);
+  check("Avec son code, Ama entre dans l'app", await until(() => A.p.isVisible(".app")));
+  await E.p.evaluate(() => [...document.querySelectorAll("[data-a=access-out]")][0].click()); await E.p.waitForTimeout(300);
+
+  // Un code déjà utilisé ne sert plus à personne
+  const F = await device("F");
+  await register(F.p, "Afi Autre", "afi@gmail.com", "Autre2026!");
+  await until(() => F.p.isVisible("#x-redeem"));
+  await redeem(F.p, codeA);
+  check("Un code déjà utilisé est refusé", await F.p.isVisible("#x-redeem"));
+  await F.ctx.close(); await E.ctx.close();
   await addOp(A.p, 12500, "Marché de Hédzranawoé");
   check("A voit son opération", (await notes(A.p)).includes("Hédzranawoé"));
   check("A est synchronisé", await until(async () => (await A.p.textContent("#sync")).includes("Synchronisé")), await A.p.textContent("#sync"));
@@ -122,11 +164,19 @@ try {
   const C = await device("C");
   await C.p.fill("#x-name", "Kofi Agbeko"); await C.p.click("[data-a=kind][data-k=phone]"); await C.p.fill("#x-phone", "91 22 33 44");
   await C.p.fill("#x-pw", "Budget123"); await C.p.fill("#x-pw2", "Budget123"); await C.p.click("form button[type=submit]");
-  check("Un compte téléphone se crée", await until(() => C.p.isVisible(".app")));
-  await C.p.waitForTimeout(1500);
+  check("Un compte téléphone se crée et demande l'accès", await until(() => C.p.isVisible("#x-redeem")));
+  await C.p.waitForTimeout(500);
   check("Le nouveau compte ne voit aucune opération d'Ama", (await C.p.evaluate(() => window.__azurTest.count())) === 0);
   const denied = await C.p.evaluate(uid => window.__azurTest.readOther(uid), uidA);
   check("Les règles interdisent de lire les données d'un autre compte", denied !== "allowed", denied);
+  check("Même l'administratrice ne lit pas les budgets des autres", (await D.p.evaluate(uid => window.__azurTest.readOther(uid), uidA)) !== "allowed");
+
+  // L'administratrice retire l'accès d'Ama
+  await click(D.p, "[data-act=access-load]");
+  await until(async () => (await D.p.textContent("#access-card")).includes("Personnes autorisées") && (await D.p.$$("[data-act=access-revoke]")).length > 0);
+  await D.p.evaluate(() => document.querySelector("[data-act=access-revoke]").click()); await D.p.waitForTimeout(300);
+  await D.p.click("#cf-ok"); await D.p.waitForTimeout(1500);
+  check("Après retrait, Ama n'accède plus à ses données", (await B.p.evaluate(() => window.__azurTest.readOther(window.__azurTest.uid()))) !== "allowed");
 } catch (e) {
   check("Le scénario s'est déroulé sans erreur", false, e.message.split("\n")[0]);
 }
