@@ -175,8 +175,9 @@ try {
   await click(D.p, "[data-act=access-load]");
   await until(async () => (await D.p.textContent("#access-card")).includes("Personnes autorisées") && (await D.p.$$("[data-act=access-revoke]")).length > 0);
   await D.p.evaluate(() => document.querySelector("[data-act=access-revoke]").click()); await D.p.waitForTimeout(300);
-  await D.p.click("#cf-ok"); await D.p.waitForTimeout(1500);
-  check("Après retrait, Ama n'accède plus à ses données", (await B.p.evaluate(() => window.__azurTest.readOther(window.__azurTest.uid()))) !== "allowed");
+  await D.p.click("#cf-ok");
+  check("L'accès d'Ama est retiré de la liste", await until(async () => !(await D.p.textContent("#access-card")).includes("Ama Mensah")));
+  check("Après retrait, Ama n'accède plus à ses données", await until(async () => (await B.p.evaluate(() => window.__azurTest.readOther(window.__azurTest.uid()))) !== "allowed"));
 } catch (e) {
   check("Le scénario s'est déroulé sans erreur", false, e.message.split("\n")[0]);
 }
