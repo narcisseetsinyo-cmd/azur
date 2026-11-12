@@ -14,7 +14,7 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
   doc, collection, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs, getDoc, serverTimestamp,
   terminate, clearIndexedDbPersistence, updateDoc, deleteField, FieldPath,
-  getDocFromServer, getDocsFromServer, query, where, Timestamp
+  getDocFromServer, getDocsFromServer, query, where, limit, Timestamp
 } from "firebase/firestore";
 
 const native = window.azurNative || null; // présent seulement dans le logiciel Windows / Mac
@@ -473,7 +473,7 @@ if (emu) {
   // Outils réservés aux tests automatiques sur l'émulateur Firebase
   window.__azurTest = {
     uid: () => (session ? session.uid : null),
-    readOther: async uid => { try { await getDocsFromServer(collection(db, "users", uid, "tx")); return "allowed"; } catch (e) { return e.code || "denied"; } },
+    readOther: async uid => { try { await getDocsFromServer(query(collection(db, "users", uid, "tx"), limit(1))); return "allowed"; } catch (e) { return e.code || "denied"; } },
     count: () => txMap.size
   };
 }

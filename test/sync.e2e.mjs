@@ -178,6 +178,9 @@ try {
   await D.p.click("#cf-ok");
   check("L'accès d'Ama est retiré de la liste", await until(async () => !(await D.p.textContent("#access-card")).includes("Ama Mensah")));
   check("Après retrait, Ama n'accède plus à ses données", await until(async () => (await B.p.evaluate(() => window.__azurTest.readOther(window.__azurTest.uid()))) !== "allowed"));
+  await B.p.reload(); await B.p.waitForTimeout(800);
+  await B.p.click(".acc"); await B.p.fill("#x-pw", "Azur2026!"); await B.p.click("form button[type=submit]");
+  check("À la connexion suivante, Ama doit de nouveau demander l'accès", await until(() => B.p.isVisible("#x-redeem")));
 } catch (e) {
   check("Le scénario s'est déroulé sans erreur", false, e.message.split("\n")[0]);
 }
