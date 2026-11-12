@@ -868,10 +868,10 @@ document.addEventListener("click",e=>{
     case "acc-password":openAccount("password");break;
     case "access-see":go("settings");setTimeout(()=>{const e=$("#access-sec");if(e)e.scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});},120);break;
     case "access-load":accessData=null;{const e=$("#access-card");if(e)e.innerHTML=accessCardHtml();}loadAccess();break;
-    case "access-approve":(async()=>{b.disabled=true;const r=await window.azur.access.approve(b.dataset.uid);b.disabled=false;if(!r.ok){toast(r.error.message);return;}showCode(r.data.code,r.data.name);loadAccess();})();break;
-    case "access-show":showCode(b.dataset.code,b.dataset.name);break;
-    case "access-decline":confirmBox(`Refuser la demande de ${b.dataset.name||"cette personne"} ?`,"La demande disparaît de la liste. La personne pourra en faire une nouvelle en se reconnectant.","Refuser",async()=>{const r=await window.azur.access.decline(b.dataset.uid);toast(r.ok?"Demande refusée.":r.error.message);loadAccess();});break;
-    case "access-revoke":confirmBox(`Retirer l'accès de ${b.dataset.name||"cette personne"} ?`,"Elle ne pourra plus ouvrir son budget. Ses données ne sont pas effacées : si tu lui redonnes l'accès plus tard, elle les retrouvera.","Retirer",async()=>{const r=await window.azur.access.revoke(b.dataset.uid);toast(r.ok?"Accès retiré.":r.error.message);loadAccess();});break;
+    case "access-approve":(async()=>{a.disabled=true;const r=await window.azur.access.approve(a.dataset.uid);a.disabled=false;if(!r.ok){toast(r.error.message);return;}showCode(r.data.code,r.data.name);loadAccess();})();break;
+    case "access-show":showCode(a.dataset.code,a.dataset.name);break;
+    case "access-decline":confirmBox(`Refuser la demande de ${a.dataset.name||"cette personne"} ?`,"La demande disparaît de la liste. La personne pourra en faire une nouvelle en se reconnectant.","Refuser",async()=>{const r=await window.azur.access.decline(a.dataset.uid);toast(r.ok?"Demande refusée.":r.error.message);loadAccess();});break;
+    case "access-revoke":confirmBox(`Retirer l'accès de ${a.dataset.name||"cette personne"} ?`,"Elle ne pourra plus ouvrir son budget. Ses données ne sont pas effacées : si tu lui redonnes l'accès plus tard, elle les retrouvera.","Retirer",async()=>{const r=await window.azur.access.revoke(a.dataset.uid);toast(r.ok?"Accès retiré.":r.error.message);loadAccess();});break;
     case "verify-send":(async()=>{const r=await window.azur.account.sendVerification();toast(r.ok?`E-mail envoyé à ${r.data}. Pense aux courriers indésirables.`:r.error.message);})();break;
     case "verify-check":(async()=>{const r=await window.azur.account.verification();if(r.ok&&r.data.verified){session.user={...session.user,verified:true};render(true);toast("Adresse confirmée, merci.");}else toast(r.ok?"Pas encore confirmée. Ouvre le lien reçu par e-mail, puis réessaie.":r.error.message);})();break;
     case "backup-now":exportJson();break;
