@@ -121,3 +121,16 @@
 
 /* Montants du bilan : jamais coupés au milieu */
 @media (max-width:599px){ .review-sum .kpi strong{white-space:nowrap;font-size:clamp(14px,4.6vw,22px)} }
+
+/* Nouvelles vues (Mon mois, dettes, immobilier) sur téléphone */
+@media (max-width:599px){
+  .kpi strong{white-space:nowrap;font-size:clamp(14px,4.4vw,22px)}
+  .debt-top{grid-template-columns:auto minmax(0,1fr)}
+  .debt-left{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;text-align:left}
+  .card-h{flex-wrap:wrap;row-gap:8px}
+  .env-h{grid-template-columns:auto minmax(0,1fr)}
+  .env-tot{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 10px}
+  .plan-foot .btn{flex:1 1 100%;justify-content:center}
+  .sim-grid,.sim-res{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .num.big{font-size:22px}
+}

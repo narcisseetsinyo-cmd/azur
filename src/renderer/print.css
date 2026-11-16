@@ -142,3 +142,11 @@
 .pr-foot{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;font-size:10px;color:var(--fg-3);break-inside:avoid}
 .pr-foot img{width:16px;height:16px;border-radius:5px}
 .pr-foot b{font-family:var(--font-display);font-weight:600;color:var(--fg)}
+/* Voyants et enveloppes */
+.pr-sig{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:9px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.pr-sig:first-child{border-top:0}
+.pr-sig>span{width:10px;height:10px;border-radius:50%}
+.pr-sig b{display:block;font-weight:600;font-size:11px}
+.pr-sig small{display:block;font-size:9px;color:var(--fg-3)}
+.pr-sig strong{font-family:var(--font-display);font-weight:600;font-size:12px;white-space:nowrap}
+.pr-env .pr-brow{padding:3px 0}

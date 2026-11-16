@@ -109,20 +109,22 @@ let txMap = new Map(), cfg = null, cfgFine = false, unsubs = [];
 const isObj = v => v && typeof v === "object" && !Array.isArray(v);
 const byIdMap = arr => Object.fromEntries((arr || []).filter(x => x && x.id).map((x, i) => [String(x.id), { ...x, _o: i }]));
 const fromIdMap = m => Object.values(m || {}).sort((a, b) => (a._o || 0) - (b._o || 0)).map(({ _o, ...x }) => x);
+// Listes enregistrées élément par élément (deux appareils peuvent en modifier deux différents sans conflit)
+const ID_LISTS = ["goals", "debts", "props"];
 function toStored(c) {
   const o = clean(c || {});
-  if (Array.isArray(o.goals)) o.goals = byIdMap(o.goals);
+  ID_LISTS.forEach(k => { if (Array.isArray(o[k])) o[k] = byIdMap(o[k]); });
   if (isObj(o.customCats)) Object.keys(o.customCats).forEach(k => { if (Array.isArray(o.customCats[k])) o.customCats[k] = byIdMap(o.customCats[k]); });
   return o;
 }
 function fromStored(o) {
   const c = clean(o || {});
-  if (isObj(c.goals)) c.goals = fromIdMap(c.goals);
+  ID_LISTS.forEach(k => { if (isObj(c[k])) c[k] = fromIdMap(c[k]); });
   if (isObj(c.customCats)) Object.keys(c.customCats).forEach(k => { if (isObj(c.customCats[k])) c.customCats[k] = fromIdMap(c.customCats[k]); });
   return c;
 }
 function leaves(o, path = [], out = new Map()) {
-  const whole = (path[0] === "goals" && path.length === 2) || (path[0] === "customCats" && path.length === 3);
+  const whole = (ID_LISTS.includes(path[0]) && path.length === 2) || (path[0] === "customCats" && path.length === 3);
   if (!whole && isObj(o) && Object.keys(o).length) { Object.entries(o).forEach(([k, v]) => leaves(v, [...path, k], out)); return out; }
   if (path.length) out.set(JSON.stringify(path), o);
   return out;

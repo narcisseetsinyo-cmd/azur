@@ -116,5 +116,64 @@
     return v < 5000 ? Math.ceil(v / 500) * 500 : Math.ceil(v / 1000) * 1000;
   }
 
-  return { pad, iso, period, inRange, sums, byCat, recurringId, recurringPlan, duplicateRecurring, splitPlan, niceUp };
+  /** Simulateur d'épargne (même méthode que le classeur Budget DS) : chaque année, les 12 versements
+   *  s'ajoutent au capital, puis l'ensemble rapporte le rendement annuel. Taux en décimal (0.04 = 4 %). */
+  function simulate({ monthly = 0, initial = 0, rate = 0, inflation = 0, years = 30 }) {
+    const rows = []; let value = initial, paid = initial;
+    for (let y = 1; y <= years; y++) {
+      value = (12 * monthly + value) * (1 + rate);
+      paid += 12 * monthly;
+      rows.push({ year: y, paid, value, gain: value - paid, today: value / Math.pow(1 + inflation, y) });
+    }
+    return rows;
+  }
+  /** Nombre d'années pour atteindre un objectif (null si plus de `max` ans). */
+  function yearsToTarget(o, target, max = 30) {
+    if (!(target > 0)) return null;
+    if ((o.initial || 0) >= target) return 0;
+    const r = simulate({ ...o, years: max }).find(x => x.value >= target);
+    return r ? r.year : null;
+  }
+  /** Épargne mensuelle nécessaire pour atteindre `target` en `years` ans. */
+  function monthlyNeeded({ target, initial = 0, rate = 0, years }) {
+    if (!(target > 0) || !(years > 0)) return 0;
+    const v = rate === 0 ? (target - initial) / (12 * years)
+      : (target - initial * Math.pow(1 + rate, years)) / (12 * (1 + rate) * (Math.pow(1 + rate, years) - 1) / rate);
+    return Math.max(0, v);
+  }
+  /** Voyants du classeur : solde, endettement et épargne rapportés aux revenus. */
+  function signals({ income, net, debt, core }) {
+    if (!(income > 0)) return null;
+    const solde = net / income, dette = debt / income, epargne = core / income;
+    return {
+      solde: { v: solde, level: solde >= 0.10 ? "good" : solde >= 0 ? "warn" : "bad" },
+      dette: { v: dette, level: dette < 0.15 ? "good" : dette <= 0.33 ? "warn" : "bad" },
+      epargne: { v: epargne, level: epargne >= 0.10 ? "good" : epargne >= 0.05 ? "warn" : "bad" }
+    };
+  }
+  /** Part de l'entrée qui dépasse le revenu de base, à verser au réservoir. */
+  function reservoirShare({ entryAmount, monthIncome, base, alreadyDeposited }) {
+    if (!(base > 0)) return 0;
+    const surplus = Math.max(0, monthIncome - base) - (alreadyDeposited || 0);
+    return Math.max(0, Math.min(entryAmount, surplus));
+  }
+  /** Rentabilité d'un bien (classeur ImmoView). */
+  function propertyStats({ cost = 0, cash0 = 0, moves = [], since = "", nonOperating = [] }) {
+    let tin = 0, tout = 0, rents = 0, charges = 0;
+    moves.forEach(m => {
+      const a = +m.amount || 0;
+      if (m.dir === "in") tin += a; else tout += a;
+      if (since && m.date < since) return;
+      if (m.dir === "in" && m.poste === "loyers") rents += a;
+      if (m.dir === "out" && !nonOperating.includes(m.poste)) charges += a;
+    });
+    const netYear = rents - charges;
+    return {
+      cash: cash0 + tin - tout, totalIn: tin, totalOut: tout, rents, charges,
+      gross: cost > 0 ? rents / cost : null, net: cost > 0 ? netYear / cost : null,
+      payback: cost > 0 && netYear > 0 ? cost / netYear : null
+    };
+  }
+
+  return { pad, iso, period, inRange, sums, byCat, recurringId, recurringPlan, duplicateRecurring, splitPlan, niceUp, simulate, yearsToTarget, monthlyNeeded, signals, reservoirShare, propertyStats };
 });

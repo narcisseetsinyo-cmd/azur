@@ -90,4 +90,45 @@ t("dîme désactivée et répartition désactivée", () => {
 t("plafonds suggérés arrondis vers le haut", () => {
   assert.strictEqual(C.niceUp(4210), 4500); assert.strictEqual(C.niceUp(66150), 67000); assert.strictEqual(C.niceUp(12.3, 2), 20);
 });
+t("simulateur : mêmes valeurs que le classeur (25 000 F/mois à 4 %)", () => {
+  const r = C.simulate({ monthly: 25000, initial: 0, rate: 0.04, inflation: 0.02, years: 10 });
+  assert.strictEqual(Math.round(r[0].value), 312000);
+  assert.strictEqual(Math.round(r[1].value), 636480);
+  assert.strictEqual(r[9].paid, 3000000);
+  assert.ok(Math.abs(r[9].value - 312000 * (Math.pow(1.04, 10) - 1) / 0.04) < 1e-6, r[9].value);
+});
+t("simulateur : années pour atteindre l'objectif et épargne nécessaire", () => {
+  const o = { monthly: 25000, initial: 0, rate: 0.04 };
+  assert.strictEqual(C.yearsToTarget(o, 5000000), 13);
+  const m = C.monthlyNeeded({ target: 5000000, initial: 0, rate: 0.04, years: 10 });
+  const back = C.simulate({ monthly: m, rate: 0.04, years: 10 })[9].value;
+  assert.ok(Math.abs(back - 5000000) < 1, back);
+  assert.strictEqual(C.monthlyNeeded({ target: 1200000, rate: 0, years: 2 }), 50000);
+  assert.strictEqual(C.yearsToTarget({ monthly: 0, initial: 0, rate: 0 }, 1000), null);
+});
+t("voyants : seuils du classeur", () => {
+  const s = C.signals({ income: 100000, net: 12000, debt: 20000, core: 6000 });
+  assert.deepStrictEqual([s.solde.level, s.dette.level, s.epargne.level], ["good", "warn", "warn"]);
+  const b = C.signals({ income: 100000, net: -1, debt: 40000, core: 2000 });
+  assert.deepStrictEqual([b.solde.level, b.dette.level, b.epargne.level], ["bad", "bad", "bad"]);
+  assert.strictEqual(C.signals({ income: 0, net: 0, debt: 0, core: 0 }), null);
+});
+t("réservoir : seule la part au-delà du revenu de base", () => {
+  assert.strictEqual(C.reservoirShare({ entryAmount: 80000, monthIncome: 230000, base: 200000, alreadyDeposited: 0 }), 30000);
+  assert.strictEqual(C.reservoirShare({ entryAmount: 80000, monthIncome: 230000, base: 200000, alreadyDeposited: 30000 }), 0);
+  assert.strictEqual(C.reservoirShare({ entryAmount: 50000, monthIncome: 150000, base: 200000 }), 0);
+  assert.strictEqual(C.reservoirShare({ entryAmount: 50000, monthIncome: 500000, base: 0 }), 0);
+});
+t("immobilier : trésorerie et rendements", () => {
+  const moves = [
+    { dir: "in", poste: "loyers", amount: 600000, date: "2026-03-01" },
+    { dir: "in", poste: "caution-in", amount: 100000, date: "2026-03-01" },
+    { dir: "out", poste: "gardiennage", amount: 120000, date: "2026-04-01" },
+    { dir: "out", poste: "credit", amount: 300000, date: "2026-05-01" }
+  ];
+  const r = C.propertyStats({ cost: 12000000, cash0: 50000, moves, since: "2025-12-01", nonOperating: ["credit", "materiaux", "main", "caution-out"] });
+  assert.strictEqual(r.cash, 330000);
+  assert.strictEqual(r.rents, 600000); assert.strictEqual(r.charges, 120000);
+  assert.strictEqual(r.gross, 0.05); assert.strictEqual(r.net, 0.04); assert.strictEqual(r.payback, 25);
+});
 console.log(`\n${n} tests réussis`);
