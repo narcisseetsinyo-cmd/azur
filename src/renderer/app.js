@@ -251,7 +251,7 @@ function vHome(){
   const base=+S.config.baseIncome||0;let resBanner="";
   if(isNow&&base>0&&left<=10){const inc=s.in-(byCat(L,"in")["reservoir-in"]||0);const bal=reservoirBalance();if(inc<base&&bal>0)resBanner=`<div class="banner">${ms("water_drop")}<p>Ce mois, tes revenus sont sous ton revenu de base de <strong>${fmt(base-inc)}</strong>. Ton réservoir contient ${fmt(bal)}.</p><button class="btn sm" data-act="res-take" type="button">Prendre dans le réservoir</button></div>`;}
   const plan=planOf(p);const pT=plan?planTotals(planLines(p,plan,L,false)):null;const pS=pT?planStatus(pT):null;
-  return `${accessBanner()}${verifyBanner()}${demoBanner()}${backupBanner()}${reviewBanner}${planBanner}${resBanner}
+  return `${accessBanner()}${verifyBanner()}${profileBanner()}${demoBanner()}${backupBanner()}${reviewBanner}${planBanner}${resBanner}
   <div class="home-grid">
    <div class="col">
     <article class="hero" id="hero" ${I()}>
@@ -405,7 +405,7 @@ function vSettings(){
   const c=S.config;
   return `<div class="page-h" style="--i:0"><div><h1>Paramètres</h1><p>Personnalise Azur et garde tes données en sécurité.</p></div></div>
   <section class="card set-sec" style="--i:1"><h2>Mon compte</h2>
-    <div class="status"><span class="avatar lg">${esc(initials(session.user.displayName))}</span><div style="min-width:0"><strong>${esc(session.user.displayName)}</strong><p class="small muted">${session.user.kind==="email"?"Compte Gmail":"Compte téléphone"} · ${esc(session.user.masked)}</p></div></div>
+    <div class="status">${avatarHtml("lg")}<div style="min-width:0;flex:1"><strong>${esc(session.user.displayName)}</strong><p class="small muted">${session.user.kind==="email"?"Compte Gmail":"Compte téléphone"} · ${esc(session.user.masked)}</p></div><button class="btn sm" data-nav="profile" type="button">${ms("account_circle")}Mon profil</button></div>
     <div class="set-row"><div><strong>Nom affiché</strong><small>Visible sur l'écran de connexion de cet ordinateur</small></div><button class="btn" data-act="acc-rename" type="button">${ms("badge")}Modifier</button></div>
     <div class="set-row"><div><strong>Mot de passe</strong><small>Change-le régulièrement et ne le partage avec personne</small></div><button class="btn" data-act="acc-password" type="button">${ms("password")}Changer</button></div>
     ${session.user.kind==="email"?`<div class="set-row"><div><strong>Mot de passe oublié</strong><small>Reçois sur ta boîte Gmail un lien pour choisir un nouveau mot de passe</small></div><button class="btn" data-act="acc-reset" type="button">${ms("mail")}Recevoir le lien</button></div>`:`<div class="set-row"><div><strong>Récupération du mot de passe</strong><small>Un compte téléphone ne peut pas recevoir d'e-mail de réinitialisation. Garde ton mot de passe en lieu sûr.</small></div></div>`}
@@ -451,15 +451,15 @@ function vSettings(){
 /* ---------- Rendu ---------- */
 function render(soft){
   const v=ui.view;
-  const navV={plan:"budgets",year:"stats",review:"stats",prop:"immo"}[v]||v;
+  const navV={plan:"budgets",year:"stats",review:"stats",prop:"immo",profile:"settings"}[v]||v;
   $$("[data-nav]").forEach(b=>{if(b.closest(".tabs-bud"))return;b.setAttribute("aria-current",b.dataset.nav===navV||(navV==="immo"&&b.dataset.nav==="goals"&&b.classList.contains("tab"))?"page":"false");});
   const p=period();$("#period-label").textContent=p.label;$("#period-range").textContent=p.range;
-  $("#period").hidden=(v==="settings"||v==="goals"||v==="immo"||v==="prop");
+  $("#period").hidden=(v==="settings"||v==="goals"||v==="immo"||v==="prop"||v==="profile");
   const el=$("#view");
   const focusId=document.activeElement&&document.activeElement.id&&el.contains(document.activeElement)?document.activeElement.id:null;
-  const html={home:vHome,ops:vOps,budgets:vBudgets,goals:vGoals,stats:vStats,settings:vSettings,review:vReview,plan:vPlan,year:vYear,immo:vImmo,prop:vProp}[v]();
+  const html={home:vHome,ops:vOps,budgets:vBudgets,goals:vGoals,stats:vStats,settings:vSettings,review:vReview,plan:vPlan,year:vYear,immo:vImmo,prop:vProp,profile:vProfile}[v]();
   el.classList.remove("enter");
-  el.innerHTML=html;
+  el.innerHTML=html;renderMe();
   if(v==="settings"&&isAdmin()&&!accessData)loadAccess();
   if(ui.anim&&!soft&&!reduced){void el.offsetWidth;el.classList.add("enter");}
   ui.anim=false;
@@ -499,7 +499,7 @@ function openSheet(html,ctx,cls){
   return o.querySelector(".sheet");
 }
 function closeSheet(now){
-  if(!sheet)return;setTimeout(()=>{if(!sheet&&remoteState)applyRemote();},260);const {el,prevFocus}=sheet;sheet=null;document.body.style.overflow="";
+  if(!sheet)return;if(sheet.ctx&&sheet.ctx.st&&sheet.ctx.st.off)sheet.ctx.st.off();setTimeout(()=>{if(!sheet&&remoteState)applyRemote();},260);const {el,prevFocus}=sheet;sheet=null;document.body.style.overflow="";
   if(now||reduced){el.remove();}else{el.classList.add("closing");setTimeout(()=>el.remove(),200);}
   if(prevFocus&&prevFocus.focus&&document.contains(prevFocus))try{prevFocus.focus({preventScroll:true});}catch(e){}
 }
@@ -744,6 +744,137 @@ function envCompareRows(p,L,s){
 function envCompareHtml(p,L,s){
   if(!s.in)return `<p class="small muted">Les parts s'affichent dès que des entrées sont enregistrées.</p>`;
   return `<div class="env-cmp">${envCompareRows(p,L,s).map(r=>`<div class="ec-row" style="--c:${r.en.color}"><span class="ic" style="--c:${r.en.color}">${ms(r.en.icon)}</span><div style="min-width:0"><div class="ml-top"><span>${r.en.label}</span><span><b>${Math.round(r.part)} %</b> · repère ${r.target} %</span></div><div class="bar ec-bar"><i style="--w:${Math.min(100,r.part)}%;--c:${r.en.color}"></i><em style="left:${Math.min(100,r.target)}%" aria-hidden="true"></em></div><small>${fmt(r.real)}${r.plan!==null?` · prévu ${fmt(r.plan)}`:""}</small></div></div>`).join("")}</div>`;
+}
+
+/* ---------- Profil (photo recadrée + informations) ---------- */
+const prof=()=>S.config.profile||{};
+const PROF_FIELDS=[["photo","Photo"],["job","Activité ou profession"],["city","Ville et quartier"],["phone","Téléphone de contact"],["motto","Ma devise ou mon objectif"]];
+function profDone(){const p=prof();const n=PROF_FIELDS.filter(([k])=>String(p[k]||"").trim()).length+(session.user&&session.user.displayName?1:0);return Math.round(n/(PROF_FIELDS.length+1)*100);}
+function avatarHtml(cls=""){const p=prof();return p.photo?`<span class="avatar ${cls} has-photo"><img src="${esc(p.photo)}" alt=""></span>`:`<span class="avatar ${cls}">${esc(initials(session.user&&session.user.displayName))}</span>`;}
+function profileBanner(){
+  if(!session.user||S.config.profileNag===false||profDone()>=100||S.config.demo)return "";
+  return `<div class="banner accent">${ms("account_circle")}<p><strong>Complète ton profil</strong> : ajoute ta photo et quelques informations (${profDone()} % rempli).</p><div class="btn-row"><button class="btn sm" data-nav="profile" type="button">Compléter</button><button class="btn sm ghost" data-act="prof-nag-off" type="button">Plus tard</button></div></div>`;
+}
+function vProfile(){
+  const p=prof(),u=session.user||{},pc=profDone();
+  const since=u.created?new Date(u.created).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}):"";
+  const f=(id,label,val,ph,extra="")=>`<label class="field"><span>${label}</span><input class="input" id="${id}" value="${esc(val||"")}" placeholder="${esc(ph)}" ${extra}></label>`;
+  return `<div class="page-h" style="--i:0"><div><h1>Mon profil</h1><p>Ces informations restent privées : seul ton compte les voit.</p></div></div>
+  <section class="card prof-hero" style="--i:1">
+    <div class="prof-photo">${avatarHtml("xl")}<button class="prof-cam" data-act="photo-pick" type="button" aria-label="${p.photo?"Changer la photo":"Ajouter une photo"}">${ms("photo_camera")}</button></div>
+    <div class="prof-id"><h2>${esc(u.displayName||"")}</h2><p class="muted">${esc(u.masked||"")}${p.job?` · ${esc(p.job)}`:""}</p>
+      <div class="prof-meter"><div class="bar"><i style="--w:${pc}%;--c:${pc>=100?"var(--in)":"var(--accent)"}"></i></div><small>${pc>=100?`${ms("verified")} Profil complet`:`Profil rempli à ${pc} %`}</small></div>
+      <div class="btn-row"><button class="btn primary sm" data-act="photo-pick" type="button">${ms("add_a_photo")}${p.photo?"Changer la photo":"Ajouter une photo"}</button>${p.photo?`<button class="btn sm" data-act="photo-recrop" type="button">${ms("crop")}Recadrer</button><button class="btn sm ghost" data-act="photo-del" type="button" aria-label="Supprimer la photo">${ms("delete")}</button>`:""}</div>
+    </div>
+  </section>
+  <section class="card" style="--i:2"><div class="card-h"><h2>Mes informations</h2>${since?`<span class="small muted">Membre depuis ${since}</span>`:""}</div>
+    <div class="prof-grid">
+      ${f("pf-name","Nom affiché",u.displayName,"Prénom et nom",'maxlength="40" autocomplete="name"')}
+      ${f("pf-job","Activité ou profession",p.job,"Wig styliste, enseignante, commerçante…",'maxlength="60"')}
+      ${f("pf-city","Ville et quartier",p.city,"Agoè, Lomé",'maxlength="60" autocomplete="address-level2"')}
+      ${f("pf-phone","Téléphone de contact",p.phone||(u.kind==="phone"?u.identifier||"":""),"+228 90 00 00 00",'inputmode="tel" maxlength="24" autocomplete="tel"')}
+      ${f("pf-birth","Date de naissance (facultatif)",p.birth,"",'type="date"')}
+      ${f("pf-dep","Personnes à charge (facultatif)",p.dependents,"0",'inputmode="numeric" maxlength="2"')}
+    </div>
+    <label class="field"><span>Ma devise ou mon objectif</span><textarea class="input" id="pf-motto" rows="2" maxlength="140" placeholder="Construire ma maison sans dette d'ici 2028">${esc(p.motto||"")}</textarea></label>
+    <p class="err" id="e-pf"></p>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:4px"><button class="btn primary" data-act="prof-save" type="button">${ms("check")}Enregistrer mon profil</button></div>
+  </section>`;
+}
+async function saveProfile(){
+  const v=id=>($("#"+id)||{}).value||"";const name=v("pf-name").trim();
+  if(name.length<2){$("#e-pf").textContent="Indique ton nom (2 caractères au moins).";return;}
+  const p={...prof(),job:v("pf-job").trim(),city:v("pf-city").trim(),phone:v("pf-phone").trim(),birth:v("pf-birth"),dependents:v("pf-dep").replace(/\D/g,""),motto:v("pf-motto").trim()};
+  S.config.profile=p;persist(["config"]);
+  if(name!==session.user.displayName){const r=await window.azur.account.rename(name);if(r.ok)session.user={...session.user,...r.data};else toast(r.error.message);}
+  renderMe();render(true);toast("Profil enregistré");
+}
+function pickPhoto(){
+  const i=document.createElement("input");i.type="file";i.accept="image/*";
+  i.onchange=()=>{const f=i.files&&i.files[0];if(!f)return;if(!/^image\//.test(f.type)){toast("Choisis une image (JPG, PNG, WebP…).");return;}if(f.size>25*1024*1024){toast("Image trop lourde (25 Mo maximum).");return;}
+    const r=new FileReader();r.onload=()=>openCropper(r.result);r.onerror=()=>toast("Impossible de lire ce fichier.");r.readAsDataURL(f);};
+  i.click();
+}
+/* Recadrage : déplacer, zoomer (molette, pincement, curseur), redresser, pivoter, miroir, lumière et contraste */
+function openCropper(src,cleanup){
+  const img=new Image();
+  img.onload=()=>{
+    let w=img.naturalWidth,h=img.naturalHeight;let source=img;
+    const MAX=2400;if(Math.max(w,h)>MAX){const k=MAX/Math.max(w,h);const c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);source=c;w=c.width;h=c.height;}
+    if(cleanup)cleanup();
+    const st={w,h,zoom:1,angle:0,rot:0,flip:false,px:0,py:0,shape:"circle",bright:0,contrast:0,grid:false};
+    const sh=openSheet(`<div class="grab"></div><div class="sheet-h"><h2>Recadrer la photo</h2><button class="icon-btn" type="button" data-act="close" aria-label="Fermer">${ms("close")}</button></div>
+      <div class="crop-wrap">
+        <div class="crop-left"><div class="crop-stage" tabindex="0" aria-label="Zone de recadrage : glisse pour déplacer, molette ou pincement pour zoomer, flèches du clavier"><canvas id="crop-cv"></canvas></div>
+          <div class="crop-tools" role="toolbar" aria-label="Outils">
+            <button class="icon-btn" type="button" data-crop="rot" title="Pivoter de 90°" aria-label="Pivoter de 90°">${ms("rotate_90_degrees_cw")}</button>
+            <button class="icon-btn" type="button" data-crop="flip" title="Miroir" aria-label="Miroir">${ms("flip")}</button>
+            <button class="icon-btn" type="button" data-crop="shape" title="Forme : cercle ou carré" aria-label="Changer la forme">${ms("crop_square")}</button>
+            <button class="icon-btn" type="button" data-crop="grid" title="Grille des tiers" aria-label="Grille des tiers" aria-pressed="false">${ms("grid_on")}</button>
+            <button class="icon-btn" type="button" data-crop="reset" title="Réinitialiser" aria-label="Réinitialiser">${ms("restart_alt")}</button>
+          </div></div>
+        <div class="crop-right">
+          <label class="crop-sl"><span>${ms("zoom_in")}Zoom <b id="cz-v">100 %</b></span><input type="range" id="cz" min="1" max="5" step="0.01" value="1"></label>
+          <label class="crop-sl"><span>${ms("straighten")}Redresser <b id="ca-v">0°</b></span><input type="range" id="ca" min="-45" max="45" step="0.5" value="0"></label>
+          <label class="crop-sl"><span>${ms("light_mode")}Lumière <b id="cb-v">0</b></span><input type="range" id="cb" min="-40" max="40" step="1" value="0"></label>
+          <label class="crop-sl"><span>${ms("contrast")}Contraste <b id="cc-v">0</b></span><input type="range" id="cc" min="-40" max="40" step="1" value="0"></label>
+          <div class="crop-prev"><span>Aperçu</span><div><canvas width="128" height="128" class="pv lg"></canvas><canvas width="80" height="80" class="pv md"></canvas><canvas width="56" height="56" class="pv sm"></canvas></div></div>
+        </div>
+      </div>
+      <p class="small muted">Glisse la photo pour la placer. Zoome avec la molette, deux doigts ou le curseur.</p>
+      <div class="sheet-acts"><button class="btn" type="button" data-act="crop-other">${ms("image")}Autre photo</button><button class="btn primary" type="button" data-act="crop-ok">${ms("check")}Valider la photo</button></div>`,{kind:"crop",st});
+    sh.classList.add("crop-sheet");sh.style.setProperty("--tc","var(--accent)");
+    const stage=$(".crop-stage",sh),cv=$("#crop-cv",sh),ctx=cv.getContext("2d");let S0=0,dpr=Math.max(1,window.devicePixelRatio||1);
+    const theta=()=>(st.angle+st.rot)*Math.PI/180;
+    // échelle minimale (rapportée au côté du cadre = 1) pour que l'image couvre tout le cadre, même redressée
+    const minK=()=>{const t=theta(),c=Math.abs(Math.cos(t)),s=Math.abs(Math.sin(t));return (c+s)/Math.min(st.w,st.h);};
+    const clamp=()=>{const k=minK()*st.zoom,t=theta(),c=Math.cos(t),s=Math.sin(t),ac=Math.abs(c),as=Math.abs(s);
+      // déplacement exprimé dans le repère de l'image
+      let ix=st.px*c+st.py*s,iy=-st.px*s+st.py*c;const mx=Math.max(0,(k*st.w-(ac+as))/2),my=Math.max(0,(k*st.h-(ac+as))/2);
+      ix=Math.max(-mx,Math.min(mx,ix));iy=Math.max(-my,Math.min(my,iy));st.px=ix*c-iy*s;st.py=ix*s+iy*c;};
+    const drawTo=(g,size,filter)=>{g.save();g.clearRect(0,0,size,size);g.fillStyle="#0A1630";g.fillRect(0,0,size,size);
+      if(filter)g.filter=`brightness(${100+st.bright}%) contrast(${100+st.contrast}%)`;
+      const k=minK()*st.zoom*size;g.translate(size/2+st.px*size,size/2+st.py*size);g.rotate(theta());if(st.flip)g.scale(-1,1);g.drawImage(source,-st.w*k/2,-st.h*k/2,st.w*k,st.h*k);g.restore();};
+    const draw=()=>{if(!S0)return;const P=S0*dpr,pad=0.08;// le cadre occupe 84 % de la zone
+      const inner=Math.round(P*(1-2*pad));ctx.save();ctx.clearRect(0,0,P,P);ctx.translate(P*pad,P*pad);
+      ctx.save();ctx.beginPath();ctx.rect(-P*pad,-P*pad,P,P);ctx.clip();
+      const k=minK()*st.zoom*inner;ctx.filter=`brightness(${100+st.bright}%) contrast(${100+st.contrast}%)`;ctx.translate(inner/2+st.px*inner,inner/2+st.py*inner);ctx.rotate(theta());if(st.flip)ctx.scale(-1,1);ctx.drawImage(source,-st.w*k/2,-st.h*k/2,st.w*k,st.h*k);ctx.restore();
+      ctx.filter="none";ctx.fillStyle="rgba(5,11,26,.62)";ctx.beginPath();ctx.rect(-P*pad,-P*pad,P,P);
+      if(st.shape==="circle")ctx.arc(inner/2,inner/2,inner/2,0,Math.PI*2,true);else{const r=inner*0.18;ctx.moveTo(r,0);ctx.arcTo(0,0,0,r,r);ctx.arcTo(0,inner,r,inner,r);ctx.arcTo(inner,inner,inner,inner-r,r);ctx.arcTo(inner,0,inner-r,0,r);ctx.closePath();}
+      ctx.fill("evenodd");
+      ctx.strokeStyle="rgba(124,196,245,.95)";ctx.lineWidth=2*dpr;ctx.beginPath();if(st.shape==="circle")ctx.arc(inner/2,inner/2,inner/2,0,Math.PI*2);else{const r=inner*0.18;ctx.roundRect?ctx.roundRect(0,0,inner,inner,r):ctx.rect(0,0,inner,inner);}ctx.stroke();
+      if(st.grid||st.drag){ctx.strokeStyle="rgba(244,250,255,.45)";ctx.lineWidth=1*dpr;ctx.beginPath();[1,2].forEach(i=>{ctx.moveTo(inner*i/3,0);ctx.lineTo(inner*i/3,inner);ctx.moveTo(0,inner*i/3);ctx.lineTo(inner,inner*i/3);});ctx.stroke();}
+      ctx.restore();
+      $$(".pv",sh).forEach(p=>{const g=p.getContext("2d");drawTo(g,p.width,true);});
+      $("#cz-v",sh).textContent=Math.round(st.zoom*100)+" %";$("#ca-v",sh).textContent=(st.angle>0?"+":"")+st.angle+"°";$("#cb-v",sh).textContent=st.bright;$("#cc-v",sh).textContent=st.contrast;};
+    let raf=0;const redraw=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;draw();});};
+    const size=()=>{S0=Math.round(stage.clientWidth);dpr=Math.max(1,window.devicePixelRatio||1);cv.width=cv.height=S0*dpr;cv.style.width=cv.style.height=S0+"px";draw();};
+    const innerPx=()=>S0*0.84;
+    const setZoom=(z,cx,cy)=>{z=Math.max(1,Math.min(5,z));if(cx!==undefined){const r=stage.getBoundingClientRect();const ox=(cx-r.left-S0/2)/innerPx(),oy=(cy-r.top-S0/2)/innerPx();const f=z/st.zoom;st.px=ox-(ox-st.px)*f;st.py=oy-(oy-st.py)*f;}st.zoom=z;$("#cz",sh).value=z;clamp();redraw();};
+    const pts=new Map();let last=null,pinch=null;
+    stage.addEventListener("pointerdown",e=>{stage.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});st.drag=true;if(pts.size===2){const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:st.zoom};}last={x:e.clientX,y:e.clientY};});
+    stage.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pts.size===2&&pinch){const [a,b]=[...pts.values()];setZoom(pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d,(a.x+b.x)/2,(a.y+b.y)/2);return;}
+      if(last){st.px+=(e.clientX-last.x)/innerPx();st.py+=(e.clientY-last.y)/innerPx();clamp();redraw();}last={x:e.clientX,y:e.clientY};});
+    const up=e=>{pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(!pts.size){st.drag=false;last=null;redraw();}else last=[...pts.values()][0];};
+    stage.addEventListener("pointerup",up);stage.addEventListener("pointercancel",up);
+    stage.addEventListener("wheel",e=>{e.preventDefault();setZoom(st.zoom*Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);},{passive:false});
+    stage.addEventListener("dblclick",()=>{st.zoom=1;st.px=st.py=0;$("#cz",sh).value=1;clamp();redraw();});
+    stage.addEventListener("keydown",e=>{const d=e.shiftKey?0.05:0.01;const k={ArrowLeft:[-d,0],ArrowRight:[d,0],ArrowUp:[0,-d],ArrowDown:[0,d]}[e.key];if(k){e.preventDefault();st.px+=k[0];st.py+=k[1];clamp();redraw();}else if(e.key==="+"||e.key==="="){setZoom(st.zoom*1.1);}else if(e.key==="-"){setZoom(st.zoom/1.1);}});
+    $("#cz",sh).addEventListener("input",e=>setZoom(+e.target.value));
+    $("#ca",sh).addEventListener("input",e=>{st.angle=+e.target.value;st.drag=true;clamp();redraw();});$("#ca",sh).addEventListener("change",()=>{st.drag=false;redraw();});
+    $("#cb",sh).addEventListener("input",e=>{st.bright=+e.target.value;redraw();});
+    $("#cc",sh).addEventListener("input",e=>{st.contrast=+e.target.value;redraw();});
+    $$("[data-crop]",sh).forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.crop;
+      if(a==="rot"){st.rot=(st.rot+90)%360;}else if(a==="flip")st.flip=!st.flip;else if(a==="shape"){st.shape=st.shape==="circle"?"square":"circle";b.innerHTML=ms(st.shape==="circle"?"crop_square":"circle");}
+      else if(a==="grid"){st.grid=!st.grid;b.setAttribute("aria-pressed",st.grid);}else if(a==="reset"){Object.assign(st,{zoom:1,angle:0,rot:0,flip:false,px:0,py:0,bright:0,contrast:0});["cz","ca","cb","cc"].forEach(id=>$("#"+id,sh).value=id==="cz"?1:0);}
+      clamp();redraw();}));
+    st.export=()=>{const out=document.createElement("canvas");out.width=out.height=512;drawTo(out.getContext("2d"),512,true);let q=0.88,url=out.toDataURL("image/jpeg",q);while(url.length>110000&&q>0.5){q-=0.08;url=out.toDataURL("image/jpeg",q);}return url;};
+    requestAnimationFrame(size);window.addEventListener("resize",size);st.off=()=>window.removeEventListener("resize",size);
+    setTimeout(()=>stage.focus(),80);
+  };
+  img.onerror=()=>{if(cleanup)cleanup();toast("Impossible de lire cette image. Essaie une photo JPG ou PNG.");};
+  img.src=src;
 }
 
 /* ---------- Mon mois : prévu et réel, « chaque franc a une mission » ---------- */
@@ -1113,7 +1244,7 @@ function printHtml(){
   <header class="pr-head">
     <div class="pr-brand"><img src="${LOGO}" alt=""><span>Azur</span><em>Bilan mensuel</em></div>
     <div class="pr-hero">
-      <div><p class="eyebrow">${esc(range)}</p><h1>Bilan de <span>${mName}</span> ${mYear}</h1><p class="who">${esc(session.user?session.user.displayName:"")} · imprimé le ${prDate(today)}</p></div>
+      <div><p class="eyebrow">${esc(range)}</p><h1>Bilan de <span>${mName}</span> ${mYear}</h1><p class="who">${prof().photo?`<img class="pr-face" src="${esc(prof().photo)}" alt="">`:""}${esc(session.user?session.user.displayName:"")}${prof().job?" · "+esc(prof().job):""} · imprimé le ${prDate(today)}</p></div>
       <div class="pr-net"><small>Solde du mois</small><strong>${fmt(s.net)}</strong><span>${L.length} opération${L.length>1?"s":""}${capTot?` · ${Math.round(capPct)} % des plafonds utilisés`:""}</span></div>
     </div>
   </header>
@@ -1278,6 +1409,13 @@ document.addEventListener("click",e=>{
     case "goal-save":saveGoal();break;
     case "goal-delete":{const gid=sheet.ctx.st.id;closeSheet(true);const g=S.config.goals.find(x=>x.id===gid);confirmBox("Supprimer l'objectif ?",`« ${g?g.name:""} » sera supprimé. Les opérations d'épargne liées restent dans ton historique.`,"Supprimer",()=>{S.config.goals=S.config.goals.filter(x=>x.id!==gid);persist(["config"]);render(true);toast("Objectif supprimé");});break;}
     case "cat-new":openCat();break;
+    case "photo-pick":pickPhoto();break;
+    case "photo-recrop":if(prof().photo)openCropper(prof().photo);break;
+    case "photo-del":confirmBox("Supprimer ta photo ?","Tes initiales la remplaceront partout.","Supprimer",()=>{const p={...prof()};delete p.photo;S.config.profile=p;persist(["config"]);renderMe();render(true);toast("Photo supprimée");});break;
+    case "prof-save":saveProfile();break;
+    case "prof-nag-off":S.config.profileNag=false;persist(["config"]);render(true);break;
+    case "crop-ok":{const st=sheet.ctx.st;const url=st.export();S.config.profile={...prof(),photo:url};persist(["config"]);closeSheet();renderMe();render(true);toast("Photo de profil enregistrée");break;}
+    case "crop-other":closeSheet(true);pickPhoto();break;
     case "plan-start":startPlan(a.dataset.from);break;
     case "plan-dime":{const pl=planOf(period());if(pl){pl.dime=+a.dataset.v;persist(["config"]);render(true);toast("Dîme prévue mise à jour");}break;}
     case "plan-all":ui.planAll=!ui.planAll;render(true);break;
@@ -1510,7 +1648,7 @@ async function legacyImport(){
 /* ---------- Compte ---------- */
 const initials=n=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
 const firstName=n=>String(n||"").trim().split(/\s+/)[0]||"";
-function renderMe(){const el=$("#rail-me");if(!el||!session.user)return;el.innerHTML=`<span class="avatar">${esc(initials(session.user.displayName))}</span><div><strong>${esc(session.user.displayName)}</strong><small>${esc(session.user.masked)}</small></div><button class="icon-btn" type="button" data-act="logout" aria-label="Se déconnecter" title="Se déconnecter">${ms("logout")}</button>`;}
+function renderMe(){const el=$("#rail-me");if(!el||!session.user)return;el.innerHTML=`<button class="me-link" type="button" data-nav="profile" aria-label="Mon profil">${avatarHtml()}<div><strong>${esc(session.user.displayName)}</strong><small>${esc(prof().job||session.user.masked)}</small></div></button><button class="icon-btn" type="button" data-act="logout" aria-label="Se déconnecter" title="Se déconnecter">${ms("logout")}</button>`;}
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Code copié");}catch(e){toast("Copie impossible, note le code à la main.");}}
 function openAccount(mode){
   const pw=(id,label,ac)=>`<label class="field"><span>${label}</span><input class="input" type="password" id="${id}" autocomplete="${ac}"></label>`;

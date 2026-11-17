@@ -150,3 +150,4 @@
 .pr-sig small{display:block;font-size:9px;color:var(--fg-3)}
 .pr-sig strong{font-family:var(--font-display);font-weight:600;font-size:12px;white-space:nowrap}
 .pr-env .pr-brow{padding:3px 0}
+.pr-face{width:20px;height:20px;border-radius:50%;object-fit:cover;vertical-align:-5px;margin-right:6px;border:1px solid rgba(124,196,245,.5)}
