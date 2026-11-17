@@ -1,0 +1,41 @@
+name: E-mails automatiques (Brevo)
+
+# Toutes les 10 minutes : demandes d'accès, codes d'accès et, en début de mois, bilans.
+# Secrets nécessaires : FIREBASE_SA, BREVO_API_KEY, BREVO_SENDER (et BREVO_SENDER_NAME, facultatif).
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mail
+  cancel-in-progress: false
+
+jobs:
+  mail:
+    name: Envoyer les e-mails
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: ~/mailer-deps
+          key: mailer-firebase-admin-14.5.1
+      - name: Installer le module Firebase
+        run: |
+          mkdir -p ~/mailer-deps && cd ~/mailer-deps
+          [ -d node_modules/firebase-admin ] || npm install --no-audit --no-fund firebase-admin@14.5.1
+      - name: Envoyer
+        run: NODE_PATH=~/mailer-deps/node_modules node scripts/mailer.mjs
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          BREVO_SENDER: ${{ secrets.BREVO_SENDER }}
+          BREVO_SENDER_NAME: ${{ secrets.BREVO_SENDER_NAME }}

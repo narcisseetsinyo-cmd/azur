@@ -175,5 +175,12 @@
     };
   }
 
-  return { pad, iso, period, inRange, sums, byCat, recurringId, recurringPlan, duplicateRecurring, splitPlan, niceUp, simulate, yearsToTarget, monthlyNeeded, signals, reservoirShare, propertyStats };
+  /** Enveloppes de la méthode Budget DS : catégorie de dépense → enveloppe par défaut. */
+  const ENVS = [["dieu", "Dieu", 10], ["noyau", "Le noyau", 10], ["essentiels", "Les essentiels", 50], ["dettes", "Les dettes", 20], ["famille", "La famille", 5], ["vie", "La vie", 5]];
+  const ENV_OUT = { loyer: "essentiels", alim: "essentiels", transport: "essentiels", energie: "essentiels", gaz: "essentiels", telecom: "essentiels", sante: "essentiels", mutuelle: "essentiels", scolarite: "essentiels", cantine: "essentiels", entretien: "essentiels", personnel: "essentiels", frais: "essentiels", pro: "essentiels", dette: "dettes", famille: "famille", parents: "famille", ceremonies: "famille", depannage: "famille", pret: "famille", cotisation: "famille" };
+  const defEnv = (type, cat) => (type === "in" ? null : type === "gift" ? "dieu" : type === "save" ? "noyau" : ENV_OUT[cat] || "vie");
+  const envOf = (type, cat, envMap) => (type === "in" ? null : (envMap || {})[cat] || defEnv(type, cat));
+  function envTotals(list, envMap) { const o = {}; ENVS.forEach(([id]) => (o[id] = 0)); list.forEach(t => { if (t.type === "in") return; const e = envOf(t.type, t.cat, envMap); o[e] = (o[e] || 0) + (+t.amount || 0); }); return o; }
+
+  return { ENVS, ENV_OUT, defEnv, envOf, envTotals, pad, iso, period, inRange, sums, byCat, recurringId, recurringPlan, duplicateRecurring, splitPlan, niceUp, simulate, yearsToTarget, monthlyNeeded, signals, reservoirShare, propertyStats };
 });

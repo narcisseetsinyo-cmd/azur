@@ -71,8 +71,8 @@ const ENVS=[
   {id:"famille",label:"La famille",sub:"Solidarité planifiée",icon:"family_restroom",color:"#F472B6",t:5},
   {id:"vie",label:"La vie",sub:"Personnel, loisirs, imprévus",icon:"celebration",color:"#7CC4F5",t:5}
 ];
-const ENV_OUT={loyer:"essentiels",alim:"essentiels",transport:"essentiels",energie:"essentiels",gaz:"essentiels",telecom:"essentiels",sante:"essentiels",mutuelle:"essentiels",scolarite:"essentiels",cantine:"essentiels",entretien:"essentiels",personnel:"essentiels",frais:"essentiels",pro:"essentiels",dette:"dettes",famille:"famille",parents:"famille",ceremonies:"famille",depannage:"famille",pret:"famille",cotisation:"famille"};
-const defEnv=(type,cat)=>type==="in"?null:type==="gift"?"dieu":type==="save"?"noyau":ENV_OUT[cat]||"vie";
+const ENV_OUT=C.ENV_OUT;
+const defEnv=C.defEnv;
 const envOf=(type,cat)=>{if(type==="in")return null;return (S.config.envMap||{})[cat]||defEnv(type,cat);};
 const envById=id=>ENVS.find(e=>e.id===id);
 const activeDebts=()=>(S.config.debts||[]).filter(d=>debtLeft(d)>0);
@@ -193,7 +193,7 @@ function showCode(code,name){
   const pretty=code.replace(/^(.{4})(.{4})$/,"$1-$2");
   const msg=`Bonjour${name?" "+name.split(" ")[0]:""}, voici ton code d'accès à Azur : ${pretty}\nSaisis-le dans Azur après t'être connecté(e). Il ne marche qu'avec ton compte, une seule fois, pendant 7 jours.`;
   const sh=openSheet(`<div class="grab"></div><div class="sheet-h"><h2>Code d'accès${name?" de "+esc(name):""}</h2><button class="icon-btn" data-act="close" type="button" aria-label="Fermer">${ms("close")}</button></div>
-    <p class="muted">Envoie ce code à ${name?esc(name.split(" ")[0]):"la personne"}. Il ne fonctionne qu'avec son compte et une seule fois.</p>
+    <p class="muted">Envoie ce code à ${name?esc(name.split(" ")[0]):"la personne"}. Il ne fonctionne qu'avec son compte et une seule fois. Si elle a un compte Gmail, il lui part aussi par e-mail dans les 15 minutes.</p>
     <div class="code-show">${esc(pretty)}</div>
     <div class="sheet-acts"><button class="btn" type="button" id="cd-copy">${ms("content_copy")}Copier</button><a class="btn primary" style="flex:1" id="cd-wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">${ms("send")}Envoyer par WhatsApp</a></div>
     <button class="btn ghost block" type="button" id="cd-cancel">${ms("block")}Annuler ce code</button>`);
@@ -422,6 +422,7 @@ function vSettings(){
     <div class="set-row"><div><strong>Devise</strong><small>Utilisée pour tous les montants</small></div><select class="input" id="set-currency" data-set="currency">${Object.entries(CURRENCIES).map(([k,v])=>`<option value="${k}" ${c.currency===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     <div class="set-row"><div><strong>Début du mois budgétaire</strong><small>Par exemple le jour où tombe ton salaire</small></div><select class="input" id="set-start" data-set="startDay">${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${+c.startDay===i+1?"selected":""}>Le ${i+1}${i===0?"er":""} du mois</option>`).join("")}</select></div>
     <div class="set-row"><div><strong>Éclaboussures au toucher</strong><small>Petit effet de gouttelettes à chaque clic</small></div><label class="switch" style="--tc:var(--accent)"><span class="sr">Éclaboussures au toucher</span><input type="checkbox" id="set-splash" data-cfg="splash" ${c.splash!==false?"checked":""}><span class="tr"></span></label></div>
+    ${session.user&&session.user.kind==="email"?`<div class="set-row"><div><strong>Bilan du mois par e-mail</strong><small>Au début de chaque mois, un résumé du mois écoulé arrive sur ${esc(session.user.masked||"ton adresse Gmail")}</small></div><label class="switch" style="--tc:var(--accent)"><span class="sr">Bilan du mois par e-mail</span><input type="checkbox" id="set-mail" data-cfg="mailBilan" ${c.mailBilan!==false?"checked":""}><span class="tr"></span></label></div>`:""}
     <div class="set-row"><div><strong>Apparence</strong><small>Le mode sombre est la signature d'Azur</small></div><div class="seg-ctl" role="group" aria-label="Apparence">${[["system","Auto"],["dark","Sombre"],["light","Clair"]].map(([k,l])=>`<button type="button" data-act="theme" data-theme-val="${k}" aria-pressed="${c.theme===k}">${l}</button>`).join("")}</div></div>
   </section>
   <section class="card set-sec" style="--i:3"><div class="card-h" style="margin:0"><h2>Catégories</h2><button class="btn sm" data-act="cat-new" type="button">${ms("add")}Ajouter</button></div>
@@ -1374,7 +1375,7 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.dataset.split!==undefined){splitRecalc();return;}
-  if(t.dataset.cfg){const k=t.dataset.cfg;S.config.tithe=S.config.tithe||{on:true,rate:10};if(k==="tithe")S.config.tithe.on=t.checked;else if(k==="rate")S.config.tithe.rate=+t.value;else if(k==="split")S.config.split=t.checked;else if(k==="splash")S.config.splash=t.checked;persist(["config"]);toast("Préférence enregistrée");return;}
+  if(t.dataset.cfg){const k=t.dataset.cfg;S.config.tithe=S.config.tithe||{on:true,rate:10};if(k==="tithe")S.config.tithe.on=t.checked;else if(k==="rate")S.config.tithe.rate=+t.value;else if(k==="split")S.config.split=t.checked;else if(k==="splash")S.config.splash=t.checked;else if(k==="mailBilan")S.config.mailBilan=t.checked;persist(["config"]);toast("Préférence enregistrée");return;}
   if(t.dataset.plan){const p=period();const plans=S.config.plans=S.config.plans||{};const pl=plans[planKey(p)]=plans[planKey(p)]||{};const v=parseAmt(t.value);if(v>0)pl[t.dataset.plan]=v;else delete pl[t.dataset.plan];persist(["config"]);render(true);return;}
   if(t.dataset.base!==undefined){const v=parseAmt(t.value);if(v>0)S.config.baseIncome=v;else delete S.config.baseIncome;persist(["config"]);render(true);toast(v>0?"Revenu de base enregistré":"Revenu de base désactivé");return;}
   if(t.dataset.env){S.config.envMap=S.config.envMap||{};const st=sheet&&sheet.ctx.st;if(st){if(t.value===defEnv(st.type,st.id))delete S.config.envMap[st.id];else S.config.envMap[st.id]=t.value;persist(["config"]);toast("Enveloppe enregistrée");}return;}
@@ -1553,6 +1554,7 @@ window.AzurApp={
     stopStatus=window.azur.sync.onStatus(renderSync);
     maybeOfferLegacy();
     accessData=null;accessPending=0;
+    if(location.hash==="#bilan"){try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}ui.offset=-1;go("review");}
     if(isAdmin())stopAccess=window.azur.access.onRequests(n=>{const ch=n!==accessPending;accessPending=n;if(ch&&!sheet&&ui.view==="home")render();if(ui.view==="settings")loadAccess();});
   },
   stop(){
