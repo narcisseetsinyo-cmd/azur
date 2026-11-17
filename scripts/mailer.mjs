@@ -96,7 +96,7 @@ async function bilans() {
     const all = txs.filter(t => t && t.date), L = C.inRange(all, p), P = C.inRange(all, pp);
     if (!L.length) { await markRef.set({ lastBilan: p.start }, { merge: true }); continue; }
     const html = T.buildBilan({ name: (u.displayName || "").split(" ")[0], p, L, P, cfg: { ...cfg, debts: fromIdMap(cfg.debts) }, url: APP_URL });
-    const ok = await send({ email, name: u.displayName || "" }, `Ton bilan de ${T.monthLabel(p)}`, html, "bilan-mensuel");
+    const ok = await send({ email, name: u.displayName || "" }, `Ton bilan ${T.deMonth(T.monthLabel(p))}`, html, "bilan-mensuel");
     if (ok) await markRef.set({ lastBilan: p.start, at: FieldValue.serverTimestamp() }, { merge: true });
   }
 }

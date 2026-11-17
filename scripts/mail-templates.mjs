@@ -18,6 +18,7 @@ export function money(v, cur = "FCFA", signed = false) {
   const n = Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec }).replace(/\s/g, " ");
   return `${v < 0 ? "−" : signed && v > 0 ? "+" : ""}${n} ${sym}`;
 }
+export const deMonth = m => (/^[aeiouyàâéèêîôû]/i.test(m) ? "d'" : "de ") + m;
 export const monthLabel = p => { const d = p.startD.getDate() === 1 ? p.startD : p.endD; return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 const dateFr = d => `${d.getDate() === 1 ? "1er" : d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 
@@ -104,7 +105,7 @@ export function buildBilan({ name, p, L, P, cfg, url }) {
   const tot = top.reduce((a, [, v]) => a + v, 0) || 1;
   const topRows = top.map(([l, v]) => `<tr><td style="padding:6px 0;font-size:14px">${esc(l)}</td><td align="right" style="padding:6px 0;font-size:14px;white-space:nowrap"><strong>${money(v, cur)}</strong> <span style="color:#5E6D88;font-size:12px">${Math.round(v / tot * 100)} %</span></td></tr>`).join("");
   const body = `<p style="margin:0 0 6px">Bonjour ${esc(name || "")},</p>
-<p style="margin:0 0 16px">Voici le bilan de ton mois de <strong>${m}</strong>, du ${dateFr(p.startD)} au ${dateFr(p.endD)}. Les évolutions sont comparées au mois précédent.</p>
+<p style="margin:0 0 16px">Voici le bilan de ton mois ${/^[aeiouyàâéèêîôû]/i.test(m) ? "d'" : "de "}<strong>${m}</strong>, du ${dateFr(p.startD)} au ${dateFr(p.endD)}. Les évolutions sont comparées au mois précédent.</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${kpi("Entrées", money(s.in, cur), delta(s.in, prev.in, true))}${kpi("Sorties", money(s.outflow, cur), delta(s.outflow, prev.outflow, false))}</tr>
 <tr>${kpi("Solde du mois", money(s.net, cur, true), s.net >= 0 ? `<span style="color:${COL.in}">Positif</span>` : `<span style="color:${COL.out}">Négatif</span>`, s.net < 0 ? COL.out : null)}${kpi("Épargne (le noyau)", pct(rate), prev.in ? `<span style="color:${rate >= prate ? COL.in : COL.out}">${rate >= prate ? "+" : "−"}${Math.abs(Math.round((rate - prate) * 100))} pts</span>` : "—")}</tr></table>
 ${sig ? h2("Les voyants") + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${sigRows}</table>` : ""}
@@ -114,7 +115,7 @@ ${over.length ? h2("À surveiller") + `<ul style="margin:0;padding-left:18px;fon
 <p style="margin:22px 0 0;font-size:14px;color:#4A5D80">Ouvre Azur pour voir le bilan complet, l'imprimer et préparer ton nouveau mois.</p>`;
   return layout({
     preheader: `${m} : entrées ${money(s.in, cur)}, sorties ${money(s.outflow, cur)}, solde ${money(s.net, cur, true)}.`,
-    title: `Ton bilan de <span style="color:${COL.sky}">${MONTHS.includes(m.split(" ")[0]) ? m.split(" ")[0] : m}</span> ${m.split(" ")[1] || ""}`,
+    title: `Ton bilan ${/^[aeiouyàâéèêîôû]/i.test(m) ? "d'" : "de "}<span style="color:${COL.sky}">${m.split(" ")[0]}</span> ${m.split(" ")[1] || ""}`,
     body, cta: "Ouvrir mon bilan dans Azur", url: url + "#bilan",
     foot: "Pour ne plus recevoir ce bilan : Azur › Paramètres › Préférences › Bilan du mois par e-mail."
   });
