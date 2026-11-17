@@ -9,7 +9,9 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 const require = createRequire(import.meta.url);
-const admin = require("firebase-admin");
+const { initializeApp, cert } = require("firebase-admin/app");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 const C = require("../src/renderer/calc.js");
 const T = await import("./mail-templates.mjs");
 
@@ -19,13 +21,13 @@ const DRY = process.env.MAIL_DRY === "1";
 const NOW = process.env.MAIL_NOW ? new Date(process.env.MAIL_NOW) : new Date();
 const sent = [];
 
-if (process.env.FIRESTORE_EMULATOR_HOST) admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-azur" });
+if (process.env.FIRESTORE_EMULATOR_HOST) initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-azur" });
 else {
   if (!process.env.FIREBASE_SA) { console.log("::warning title=E-mails::Secret FIREBASE_SA absent : rien n'est envoyé."); process.exit(0); }
-  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SA)) });
+  initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SA)) });
 }
 if (!DRY && !process.env.BREVO_API_KEY) { console.log("::warning title=E-mails::Secret BREVO_API_KEY absent : rien n'est envoyé."); process.exit(0); }
-const db = admin.firestore(), auth = admin.auth();
+const db = getFirestore(), auth = getAuth();
 const sender = { email: process.env.BREVO_SENDER || ADMIN_EMAIL, name: process.env.BREVO_SENDER_NAME || "Azur" };
 
 const realEmail = e => (e && !/@telephone\.azur\.app$/i.test(e) ? e : null);
@@ -50,7 +52,7 @@ async function requests() {
     const r = d.data();
     if (r.notifiedAt) continue;
     const ok = await send({ email: ADMIN_EMAIL, name: "Administratrice Azur" }, `Nouvelle demande d'accès : ${r.name || "sans nom"}`, T.requestMail({ name: r.name, ident: r.ident, kind: r.kind, url: APP_URL }), "demande-acces");
-    if (ok) await d.ref.update({ notifiedAt: admin.firestore.FieldValue.serverTimestamp() });
+    if (ok) await d.ref.update({ notifiedAt: FieldValue.serverTimestamp() });
   }
 }
 
@@ -64,7 +66,7 @@ async function invites() {
     const email = realEmail(u && u.email);
     if (!email) { await d.ref.update({ mailedAt: "sans-email" }); continue; }
     const ok = await send({ email, name: v.name || (u && u.displayName) || "" }, "Ton code d'accès à Azur", T.codeMail({ name: v.name || (u && u.displayName), code: d.id, expires: v.expires ? v.expires.toDate() : null, url: APP_URL }), "code-acces");
-    if (ok) await d.ref.update({ mailedAt: admin.firestore.FieldValue.serverTimestamp() });
+    if (ok) await d.ref.update({ mailedAt: FieldValue.serverTimestamp() });
   }
 }
 
@@ -95,7 +97,7 @@ async function bilans() {
     if (!L.length) { await markRef.set({ lastBilan: p.start }, { merge: true }); continue; }
     const html = T.buildBilan({ name: (u.displayName || "").split(" ")[0], p, L, P, cfg: { ...cfg, debts: fromIdMap(cfg.debts) }, url: APP_URL });
     const ok = await send({ email, name: u.displayName || "" }, `Ton bilan de ${T.monthLabel(p)}`, html, "bilan-mensuel");
-    if (ok) await markRef.set({ lastBilan: p.start, at: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    if (ok) await markRef.set({ lastBilan: p.start, at: FieldValue.serverTimestamp() }, { merge: true });
   }
 }
 
